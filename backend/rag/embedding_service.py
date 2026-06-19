@@ -1,6 +1,9 @@
+from pathlib import Path
 from sentence_transformers import SentenceTransformer
 
-model = SentenceTransformer("BAAI/bge-m3")
+MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "bge-m3"
+
+model = SentenceTransformer(str(MODEL_PATH))
 
 
 def embed_documents(texts):
