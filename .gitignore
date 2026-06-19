@@ -1,0 +1,30 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+
+# FAISS index (if generated)
+*.faiss
+*.pkl
+*.index
+
+# Logs
+*.log
