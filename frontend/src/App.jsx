@@ -342,118 +342,7 @@ export default function App() {
   const [selectedLanguage, setSelectedLanguage] = useState('english');
   const [loading, setLoading] = useState(false);
 
-  // Speech Recognition States
-  const [showVoiceModal, setShowVoiceModal] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState('');
-  const recognitionRef = useRef(null);
 
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-      
-      recognition.onresult = (event) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-        
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-        
-        const currentText = finalTranscript || interimTranscript;
-        setVoiceTranscript(currentText);
-        
-        if (finalTranscript) {
-          setInputValue(finalTranscript);
-        }
-      };
-      
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error', event.error);
-        setIsListening(false);
-      };
-      
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-      
-      recognitionRef.current = recognition;
-    }
-  }, [selectedLanguage]);
-
-  const startVoiceCapture = () => {
-    if (!recognitionRef.current) {
-      alert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
-      return;
-    }
-    setVoiceTranscript('');
-    setInputValue('');
-    setShowVoiceModal(true);
-    
-    const langCodes = {
-      english: 'en-US',
-      hindi: 'hi-IN',
-      tamil: 'ta-IN',
-      telugu: 'te-IN',
-      kannada: 'kn-IN',
-      marathi: 'mr-IN',
-      bengali: 'bn-IN',
-      gujarati: 'gu-IN',
-      malayalam: 'ml-IN',
-      punjabi: 'pa-IN',
-      urdu: 'ur-PK'
-    };
-    recognitionRef.current.lang = langCodes[selectedLanguage.toLowerCase()] || 'en-US';
-    
-    try {
-      recognitionRef.current.start();
-    } catch (e) {
-      console.warn('Speech recognition already active', e);
-    }
-  };
-
-  const stopVoiceCapture = () => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
-    }
-  };
-
-  const handleVoiceSend = () => {
-    stopVoiceCapture();
-    setShowVoiceModal(false);
-    if (inputValue.trim()) {
-      handleSendMessage(null);
-    }
-  };
-
-  const handleVoiceCancel = () => {
-    stopVoiceCapture();
-    setShowVoiceModal(false);
-    setInputValue('');
-  };
-
-  const handleVoiceRetry = () => {
-    setVoiceTranscript('');
-    setInputValue('');
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-  };
 
   // RAG Visualizer Panel states
   const [activeStep, setActiveStep] = useState(0); 
@@ -582,11 +471,12 @@ export default function App() {
   };
 
   // Handle message submission
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!inputValue.trim() || loading) return;
+  const handleSendMessage = async (e, textOverride = null) => {
+    if (e) e.preventDefault();
+    const finalQueryText = textOverride ? textOverride.trim() : inputValue.trim();
+    if (!finalQueryText || loading) return;
 
-    const userMessageText = inputValue;
+    const userMessageText = finalQueryText;
     setInputValue('');
     setLoading(true);
     setCurrentQueryText(userMessageText);
@@ -701,6 +591,122 @@ export default function App() {
       kannada: 'Kannada (ಕನ್ನಡ)'
     };
     return labels[lang] || lang;
+  };
+
+  // Speech Recognition States
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+      
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        
+        const currentText = finalTranscript || interimTranscript;
+        setVoiceTranscript(currentText);
+        
+        if (finalTranscript.trim()) {
+          setInputValue(finalTranscript);
+          handleSendMessage(null, finalTranscript);
+          setShowVoiceModal(false);
+          recognition.stop();
+        }
+      };
+      
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        setIsListening(false);
+      };
+      
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      
+      recognitionRef.current = recognition;
+    }
+  }, [selectedLanguage]);
+
+  const startVoiceCapture = () => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+    setVoiceTranscript('');
+    setInputValue('');
+    setShowVoiceModal(true);
+    
+    const langCodes = {
+      english: 'en-US',
+      hindi: 'hi-IN',
+      tamil: 'ta-IN',
+      telugu: 'te-IN',
+      kannada: 'kn-IN',
+      marathi: 'mr-IN',
+      bengali: 'bn-IN',
+      gujarati: 'gu-IN',
+      malayalam: 'ml-IN',
+      punjabi: 'pa-IN',
+      urdu: 'ur-PK'
+    };
+    recognitionRef.current.lang = langCodes[selectedLanguage.toLowerCase()] || 'en-US';
+    
+    try {
+      recognitionRef.current.start();
+    } catch (e) {
+      console.warn('Speech recognition already active', e);
+    }
+  };
+
+  const stopVoiceCapture = () => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+    }
+  };
+
+  const handleVoiceSend = () => {
+    stopVoiceCapture();
+    setShowVoiceModal(false);
+    if (inputValue.trim()) {
+      handleSendMessage(null);
+    }
+  };
+
+  const handleVoiceCancel = () => {
+    stopVoiceCapture();
+    setShowVoiceModal(false);
+    setInputValue('');
+  };
+
+  const handleVoiceRetry = () => {
+    setVoiceTranscript('');
+    setInputValue('');
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.warn(e);
+      }
+    }
   };
 
   // 1. RENDER BOOT SCREEN
