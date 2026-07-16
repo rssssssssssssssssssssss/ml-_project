@@ -17,7 +17,8 @@ import {
   Upload,
   MessageSquare,
   Mic,
-  MicOff
+  MicOff,
+  Trash2
 } from 'lucide-react';
 
 // Heavy Cyber-Industrial SCADA Canvas Animator Component
@@ -387,6 +388,16 @@ export default function App() {
           modelInstalled: response.data.modelInstalled,
           details: `Ollama: ${response.data.ollamaConnected ? 'Online' : 'Offline'} | Translation: ${response.data.translationEngine}`
         });
+        
+        // Auto-sync documents list
+        try {
+          const docsRes = await axios.get(`${url}/api/documents`);
+          if (docsRes.data && docsRes.data.success) {
+            setDynamicDocs(docsRes.data.documents || []);
+          }
+        } catch (docsErr) {
+          console.warn('Failed to sync documents list during health check:', docsErr.message);
+        }
       } else {
         setIsBackendOnline(false);
         setOllamaStatus({ connected: false, modelInstalled: false, details: 'API offline. Sandbox simulation mode active.' });
@@ -487,6 +498,29 @@ export default function App() {
     }
   };
 
+  const handleDeleteDocument = async (filename) => {
+    if (!confirm(`Are you sure you want to delete "${filename}" and remove its chunks from the RAG search database?`)) {
+      return;
+    }
+    try {
+      const res = await axios.delete(`${backendUrl}/api/documents/${encodeURIComponent(filename)}`);
+      if (res.data && res.data.success) {
+        fetchDocuments();
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          sender: 'assistant',
+          text: `Successfully deleted document "${filename}". Chunks were removed from storage and memory.`,
+          language: selectedLanguage,
+          status: 'success',
+          connection: 'internal'
+        }]);
+      }
+    } catch (error) {
+      console.error('Failed to delete document:', error);
+      alert('Failed to delete document: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
   // Handle message submission
   const handleSendMessage = async (e, textOverride = null) => {
     if (e) e.preventDefault();
@@ -508,20 +542,7 @@ export default function App() {
       language: selectedLanguage
     }]);
 
-    // Check if documents list is empty
-    const totalDocsCount = dynamicDocs.length;
-    if (totalDocsCount === 0) {
-      await new Promise(r => setTimeout(r, 600));
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        sender: 'assistant',
-        text: 'Your document library is currently empty. Please upload an industrial safety manual or technical guide (PDF) in the sidebar so the RAG chatbot can read from it and answer your questions.',
-        language: selectedLanguage,
-        connection: 'internal'
-      }]);
-      setLoading(false);
-      return;
-    }
+    // Bypassed client-side empty block to defer database logic to backend.
 
     // RAG Visualizer Pipeline Animation Steps
     setActiveStep(1);
@@ -925,11 +946,24 @@ export default function App() {
             ) : (
               dynamicDocs.map((doc, idx) => (
                 <div key={idx} className="doc-item">
-                  <div className="doc-name">
-                    <FileText size={14} style={{ color: 'var(--primary)' }} />
-                    <span title={doc.name}>{doc.name}</span>
+                  <div className="doc-name" style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                    <FileText size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                    <span title={doc.name} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</span>
                   </div>
-                  <span className="doc-badge">{doc.chunks} Chunks</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    <span className="doc-badge">{doc.chunks} Chunks</span>
+                    <button
+                      type="button"
+                      className="btn-doc-delete"
+                      title="Delete manual"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteDocument(doc.name);
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
               ))
             )}

@@ -826,6 +826,24 @@ input:checked + .switch-slider:before {
   border: 1px solid rgba(var(--primary-rgb), 0.2);
 }
 
+.btn-doc-delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.btn-doc-delete:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
 /* Chat Panel Component */
 .chat-panel {
   grid-area: chat;

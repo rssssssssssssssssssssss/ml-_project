@@ -478,6 +478,28 @@ app.get('/api/documents', (req, res) => {
   }
 });
 
+app.delete('/api/documents/:filename', (req, res) => {
+  try {
+    const filenameToDelete = req.params.filename;
+    const originalCount = dataset.length;
+    
+    // Filter out chunks belonging to this document
+    dataset = dataset.filter(chunk => chunk.document !== filenameToDelete);
+    
+    const deletedCount = originalCount - dataset.length;
+    
+    // Persist updated database to disk
+    const dataPath = path.join(__dirname, 'data', 'dataset.json');
+    fs.writeFileSync(dataPath, JSON.stringify(dataset, null, 2), 'utf8');
+    
+    console.log(`[Database] Deleted document "${filenameToDelete}". Removed ${deletedCount} chunks. Remaining: ${dataset.length}`);
+    
+    res.json({ success: true, message: `Successfully deleted document "${filenameToDelete}"`, deletedChunks: deletedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.send('Vernacular RAG API Server is running.');
 });
