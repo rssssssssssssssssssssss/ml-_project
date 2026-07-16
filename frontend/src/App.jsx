@@ -15,7 +15,9 @@ import {
   X,
   ArrowRight,
   Upload,
-  MessageSquare
+  MessageSquare,
+  Mic,
+  MicOff
 } from 'lucide-react';
 
 // Heavy Cyber-Industrial SCADA Canvas Animator Component
@@ -313,6 +315,62 @@ export default function App() {
   const [isExiting, setIsExiting] = useState(false);
   const [zoomActive, setZoomActive] = useState(false);
 
+  // Speech Recognition States
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+      
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInputValue(prev => {
+          const space = prev && !prev.endsWith(' ') ? ' ' : '';
+          return prev + space + transcript;
+        });
+      };
+      
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        setIsListening(false);
+      };
+      
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      const langCodes = {
+        english: 'en-US',
+        hindi: 'hi-IN',
+        tamil: 'ta-IN',
+        telugu: 'te-IN',
+        kannada: 'kn-IN'
+      };
+      recognitionRef.current.lang = langCodes[selectedLanguage.toLowerCase()] || 'en-US';
+      recognitionRef.current.start();
+    }
+  };
+
   // Theme state
   const [isDark, setIsDark] = useState(true);
 
@@ -601,7 +659,7 @@ export default function App() {
           <div className="landing-header">
             <span className="landing-badge">Factory Cognitive Core</span>
             <h1 className="landing-title glitch-title">
-              Vernacular Industrial <span className="gradient-text">RAG Copilot</span>
+              Vernacular Industrial <span className="gradient-text">RAG Chatbot</span>
             </h1>
             <p className="landing-subtitle">
               Query mechanical manuals, blueprints, and safety regulations in your native language.
@@ -637,7 +695,7 @@ export default function App() {
 
           <div className="cta-area">
             <button className="btn-launch" onClick={handleLaunchWorkspace}>
-              Launch Copilot Workspace
+              Launch Chatbot Workspace
               <ArrowRight size={18} />
               <div className="btn-launch-glow" />
             </button>
@@ -817,7 +875,7 @@ export default function App() {
           <div className="chat-title-info">
             <div className={`status-dot ${isBackendOnline && connectionMode === 'live' ? '' : 'offline'}`} />
             <div>
-              <h2 className="chat-header-title">Industrial RAG Copilot</h2>
+              <h2 className="chat-header-title">Industrial RAG Chatbot</h2>
               <p className="chat-header-subtitle">
                 {connectionMode === 'live' && isBackendOnline ? `Live Ollama RAG Active` : `Client Simulator Active`}
               </p>
@@ -900,6 +958,15 @@ export default function App() {
 
         <div className="chat-input-area">
           <form onSubmit={handleSendMessage} className="chat-form">
+            <button
+              type="button"
+              onClick={toggleListening}
+              className={`btn-voice ${isListening ? 'listening' : ''}`}
+              title={isListening ? "Listening... Click to stop" : "Speak your query"}
+              disabled={loading}
+            >
+              {isListening ? <MicOff size={18} style={{ color: 'var(--error)' }} /> : <Mic size={18} />}
+            </button>
             <input
               type="text"
               className="textarea-control"

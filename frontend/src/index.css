@@ -1083,6 +1083,42 @@ input:checked + .switch-slider:before {
   cursor: not-allowed;
 }
 
+.btn-voice {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.2s ease, transform 0.1s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-voice:hover:not(:disabled) {
+  background-color: var(--card-border);
+  transform: translateY(-1px);
+}
+
+.btn-voice:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-voice.listening {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #ef4444;
+  animation: micPulse 1.5s infinite ease-in-out;
+}
+
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
 /* Right-side RAG Visualizer Panel */
 .visualizer-panel {
   grid-area: visualizer;
