@@ -358,7 +358,7 @@ export default function App() {
   const [isDark, setIsDark] = useState(true);
 
   // Connection settings
-  const [backendUrl, setBackendUrl] = useState('http://localhost:5000');
+  const [backendUrl, setBackendUrl] = useState('');
   const [connectionMode, setConnectionMode] = useState('live');
   const [modelName, setModelName] = useState('qwen2.5:7b');
   const [isBackendOnline, setIsBackendOnline] = useState(false);
@@ -1054,8 +1054,9 @@ export default function App() {
                 className="input-control"
                 value={backendUrl}
                 onChange={(e) => setBackendUrl(e.target.value)}
-                placeholder="http://localhost:5000"
+                placeholder="Auto-configured proxy"
               />
+              <p style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: '3px' }}>Leave blank to auto-route via sandbox proxy (recommended).</p>
             </div>
 
             <div className="form-group">
