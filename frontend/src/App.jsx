@@ -315,6 +315,33 @@ export default function App() {
   const [isExiting, setIsExiting] = useState(false);
   const [zoomActive, setZoomActive] = useState(false);
 
+
+
+  // Theme state
+  const [isDark, setIsDark] = useState(true);
+
+  // Connection settings
+  const [backendUrl, setBackendUrl] = useState('http://localhost:5000');
+  const [connectionMode, setConnectionMode] = useState('live');
+  const [modelName, setModelName] = useState('qwen2.5:7b');
+  const [isBackendOnline, setIsBackendOnline] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState({ connected: false, modelInstalled: false, details: '' });
+
+  // Chat log states
+  const [messages, setMessages] = useState([
+    {
+      id: 'welcome',
+      sender: 'assistant',
+      text: 'Welcome to your Vernacular RAG Workspace. Upload your PDF technical guides, SOPs, or company policies using the sidebar dropzone. You can toggle output languages at the top right.',
+      language: 'English',
+      status: 'success',
+      connection: 'internal'
+    }
+  ]);
+  const [inputValue, setInputValue] = useState('');
+  const [selectedLanguage, setSelectedLanguage] = useState('english');
+  const [loading, setLoading] = useState(false);
+
   // Speech Recognition States
   const [isListening, setIsListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -388,31 +415,6 @@ export default function App() {
       recognitionRef.current.start();
     }
   };
-
-  // Theme state
-  const [isDark, setIsDark] = useState(true);
-
-  // Connection settings
-  const [backendUrl, setBackendUrl] = useState('http://localhost:5000');
-  const [connectionMode, setConnectionMode] = useState('live');
-  const [modelName, setModelName] = useState('qwen2.5:7b');
-  const [isBackendOnline, setIsBackendOnline] = useState(false);
-  const [ollamaStatus, setOllamaStatus] = useState({ connected: false, modelInstalled: false, details: '' });
-
-  // Chat log states
-  const [messages, setMessages] = useState([
-    {
-      id: 'welcome',
-      sender: 'assistant',
-      text: 'Welcome to your Vernacular RAG Workspace. Upload your PDF technical guides, SOPs, or company policies using the sidebar dropzone. You can toggle output languages at the top right.',
-      language: 'English',
-      status: 'success',
-      connection: 'internal'
-    }
-  ]);
-  const [inputValue, setInputValue] = useState('');
-  const [selectedLanguage, setSelectedLanguage] = useState('english');
-  const [loading, setLoading] = useState(false);
 
   // RAG Visualizer Panel states
   const [activeStep, setActiveStep] = useState(0); 
