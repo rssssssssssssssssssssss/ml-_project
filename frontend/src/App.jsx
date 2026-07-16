@@ -317,25 +317,42 @@ export default function App() {
 
   // Speech Recognition States
   const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
   const recognitionRef = useRef(null);
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.continuous = true;
+      recognition.interimResults = true;
       
       recognition.onstart = () => {
         setIsListening(true);
       };
       
       recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setInputValue(prev => {
-          const space = prev && !prev.endsWith(' ') ? ' ' : '';
-          return prev + space + transcript;
-        });
+        let interimTranscript = '';
+        let finalTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        
+        if (interimTranscript) {
+          setVoiceTranscript(interimTranscript);
+        }
+        if (finalTranscript) {
+          setInputValue(prev => {
+            const space = prev && !prev.endsWith(' ') ? ' ' : '';
+            return prev + space + finalTranscript;
+          });
+          setVoiceTranscript(finalTranscript);
+        }
       };
       
       recognition.onerror = (event) => {
@@ -349,7 +366,7 @@ export default function App() {
       
       recognitionRef.current = recognition;
     }
-  }, []);
+  }, [selectedLanguage]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
@@ -359,6 +376,7 @@ export default function App() {
     if (isListening) {
       recognitionRef.current.stop();
     } else {
+      setVoiceTranscript('');
       const langCodes = {
         english: 'en-US',
         hindi: 'hi-IN',
@@ -1126,6 +1144,36 @@ export default function App() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {isListening && (
+        <div className="voice-overlay">
+          <div className="voice-card">
+            <div className="voice-card-header">
+              <span className="voice-recording-dot"></span>
+              <span className="voice-title">TRANSMITTING VOICE FEED</span>
+            </div>
+            
+            <div className="voice-wave-container">
+              <div className="voice-wave-bar bar-1"></div>
+              <div className="voice-wave-bar bar-2"></div>
+              <div className="voice-wave-bar bar-3"></div>
+              <div className="voice-wave-bar bar-4"></div>
+              <div className="voice-wave-bar bar-5"></div>
+              <div className="voice-wave-bar bar-6"></div>
+              <div className="voice-wave-bar bar-7"></div>
+            </div>
+            
+            <div className="voice-transcript-box">
+              <p className="voice-transcript-text">
+                {voiceTranscript || "Listening... Speak your question now"}
+              </p>
+            </div>
+            
+            <button className="btn-voice-stop" onClick={toggleListening}>
+              DISCONNECT MIC
+            </button>
           </div>
         </div>
       )}
