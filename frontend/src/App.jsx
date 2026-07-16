@@ -343,6 +343,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   // Speech Recognition States
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const recognitionRef = useRef(null);
@@ -351,7 +352,7 @@ export default function App() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = true;
+      recognition.continuous = false;
       recognition.interimResults = true;
       
       recognition.onstart = () => {
@@ -370,15 +371,11 @@ export default function App() {
           }
         }
         
-        if (interimTranscript) {
-          setVoiceTranscript(interimTranscript);
-        }
+        const currentText = finalTranscript || interimTranscript;
+        setVoiceTranscript(currentText);
+        
         if (finalTranscript) {
-          setInputValue(prev => {
-            const space = prev && !prev.endsWith(' ') ? ' ' : '';
-            return prev + space + finalTranscript;
-          });
-          setVoiceTranscript(finalTranscript);
+          setInputValue(finalTranscript);
         }
       };
       
@@ -395,24 +392,66 @@ export default function App() {
     }
   }, [selectedLanguage]);
 
-  const toggleListening = () => {
+  const startVoiceCapture = () => {
     if (!recognitionRef.current) {
       alert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
       return;
     }
-    if (isListening) {
-      recognitionRef.current.stop();
-    } else {
-      setVoiceTranscript('');
-      const langCodes = {
-        english: 'en-US',
-        hindi: 'hi-IN',
-        tamil: 'ta-IN',
-        telugu: 'te-IN',
-        kannada: 'kn-IN'
-      };
-      recognitionRef.current.lang = langCodes[selectedLanguage.toLowerCase()] || 'en-US';
+    setVoiceTranscript('');
+    setInputValue('');
+    setShowVoiceModal(true);
+    
+    const langCodes = {
+      english: 'en-US',
+      hindi: 'hi-IN',
+      tamil: 'ta-IN',
+      telugu: 'te-IN',
+      kannada: 'kn-IN',
+      marathi: 'mr-IN',
+      bengali: 'bn-IN',
+      gujarati: 'gu-IN',
+      malayalam: 'ml-IN',
+      punjabi: 'pa-IN',
+      urdu: 'ur-PK'
+    };
+    recognitionRef.current.lang = langCodes[selectedLanguage.toLowerCase()] || 'en-US';
+    
+    try {
       recognitionRef.current.start();
+    } catch (e) {
+      console.warn('Speech recognition already active', e);
+    }
+  };
+
+  const stopVoiceCapture = () => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+    }
+  };
+
+  const handleVoiceSend = () => {
+    stopVoiceCapture();
+    setShowVoiceModal(false);
+    if (inputValue.trim()) {
+      handleSendMessage(null);
+    }
+  };
+
+  const handleVoiceCancel = () => {
+    stopVoiceCapture();
+    setShowVoiceModal(false);
+    setInputValue('');
+  };
+
+  const handleVoiceRetry = () => {
+    setVoiceTranscript('');
+    setInputValue('');
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.warn(e);
+      }
     }
   };
 
@@ -980,12 +1019,12 @@ export default function App() {
           <form onSubmit={handleSendMessage} className="chat-form">
             <button
               type="button"
-              onClick={toggleListening}
+              onClick={startVoiceCapture}
               className={`btn-voice ${isListening ? 'listening' : ''}`}
-              title={isListening ? "Listening... Click to stop" : "Speak your query"}
+              title="Speak your query"
               disabled={loading}
             >
-              {isListening ? <MicOff size={18} style={{ color: 'var(--error)' }} /> : <Mic size={18} />}
+              <Mic size={18} />
             </button>
             <input
               type="text"
@@ -1149,33 +1188,56 @@ export default function App() {
           </div>
         </div>
       )}
-      {isListening && (
+      {showVoiceModal && (
         <div className="voice-overlay">
           <div className="voice-card">
             <div className="voice-card-header">
-              <span className="voice-recording-dot"></span>
-              <span className="voice-title">TRANSMITTING VOICE FEED</span>
+              {isListening && <span className="voice-recording-dot"></span>}
+              <span className="voice-title">
+                {isListening ? "TRANSMITTING VOICE FEED" : "DICTATION COMPLETED"}
+              </span>
             </div>
             
             <div className="voice-wave-container">
-              <div className="voice-wave-bar bar-1"></div>
-              <div className="voice-wave-bar bar-2"></div>
-              <div className="voice-wave-bar bar-3"></div>
-              <div className="voice-wave-bar bar-4"></div>
-              <div className="voice-wave-bar bar-5"></div>
-              <div className="voice-wave-bar bar-6"></div>
-              <div className="voice-wave-bar bar-7"></div>
+              <div className={`voice-wave-bar bar-1 ${isListening ? '' : 'static'}`}></div>
+              <div className={`voice-wave-bar bar-2 ${isListening ? '' : 'static'}`}></div>
+              <div className={`voice-wave-bar bar-3 ${isListening ? '' : 'static'}`}></div>
+              <div className={`voice-wave-bar bar-4 ${isListening ? '' : 'static'}`}></div>
+              <div className={`voice-wave-bar bar-5 ${isListening ? '' : 'static'}`}></div>
+              <div className={`voice-wave-bar bar-6 ${isListening ? '' : 'static'}`}></div>
+              <div className={`voice-wave-bar bar-7 ${isListening ? '' : 'static'}`}></div>
             </div>
             
             <div className="voice-transcript-box">
               <p className="voice-transcript-text">
-                {voiceTranscript || "Listening... Speak your question now"}
+                {voiceTranscript || (isListening ? "Listening... Speak your question now" : "Speak again by clicking below")}
               </p>
             </div>
             
-            <button className="btn-voice-stop" onClick={toggleListening}>
-              DISCONNECT MIC
-            </button>
+            <div className="voice-action-buttons">
+              {isListening ? (
+                <button type="button" className="btn-voice-action warning" onClick={stopVoiceCapture}>
+                  STOP LISTENING
+                </button>
+              ) : (
+                <button type="button" className="btn-voice-action primary" onClick={handleVoiceRetry}>
+                  SPEAK AGAIN
+                </button>
+              )}
+              
+              <button
+                type="button"
+                className="btn-voice-action success"
+                onClick={handleVoiceSend}
+                disabled={!voiceTranscript.trim()}
+              >
+                SEND QUERY
+              </button>
+              
+              <button type="button" className="btn-voice-action danger" onClick={handleVoiceCancel}>
+                CANCEL
+              </button>
+            </div>
           </div>
         </div>
       )}
