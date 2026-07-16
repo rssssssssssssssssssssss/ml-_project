@@ -597,6 +597,7 @@ export default function App() {
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceLanguage, setVoiceLanguage] = useState('english');
   const recognitionRef = useRef(null);
 
   useEffect(() => {
@@ -644,7 +645,42 @@ export default function App() {
       
       recognitionRef.current = recognition;
     }
-  }, [selectedLanguage]);
+  }, []);
+
+  const handleVoiceLangChange = (newLang) => {
+    setVoiceLanguage(newLang);
+    if (recognitionRef.current) {
+      const wasListening = isListening;
+      if (wasListening) {
+        recognitionRef.current.stop();
+      }
+      
+      const langCodes = {
+        english: 'en-US',
+        hindi: 'hi-IN',
+        tamil: 'ta-IN',
+        telugu: 'te-IN',
+        kannada: 'kn-IN',
+        marathi: 'mr-IN',
+        bengali: 'bn-IN',
+        gujarati: 'gu-IN',
+        malayalam: 'ml-IN',
+        punjabi: 'pa-IN',
+        urdu: 'ur-PK'
+      };
+      recognitionRef.current.lang = langCodes[newLang.toLowerCase()] || 'en-US';
+      
+      if (wasListening) {
+        setTimeout(() => {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {
+            console.warn(e);
+          }
+        }, 300);
+      }
+    }
+  };
 
   const startVoiceCapture = () => {
     if (!recognitionRef.current) {
@@ -653,6 +689,7 @@ export default function App() {
     }
     setVoiceTranscript('');
     setInputValue('');
+    setVoiceLanguage(selectedLanguage);
     setShowVoiceModal(true);
     
     const langCodes = {
@@ -1202,6 +1239,28 @@ export default function App() {
               <span className="voice-title">
                 {isListening ? "TRANSMITTING VOICE FEED" : "DICTATION COMPLETED"}
               </span>
+            </div>
+            
+            <div className="voice-lang-select-container" style={{ width: '100%' }}>
+              <label className="form-label" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>RECORDING DIALECT:</label>
+              <select
+                className="select-control"
+                style={{ width: '100%', marginTop: '4px' }}
+                value={voiceLanguage}
+                onChange={(e) => handleVoiceLangChange(e.target.value)}
+              >
+                <option value="english">English (US)</option>
+                <option value="tamil">Tamil (தமிழ்)</option>
+                <option value="hindi">Hindi (हिंदी)</option>
+                <option value="telugu">Telugu (తెలుగు)</option>
+                <option value="kannada">Kannada (ಕನ್ನಡ)</option>
+                <option value="marathi">Marathi (मराठी)</option>
+                <option value="bengali">Bengali (বাংলা)</option>
+                <option value="gujarati">Gujarati (ગુજરાતી)</option>
+                <option value="malayalam">Malayalam (മലയാളം)</option>
+                <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
+                <option value="urdu">Urdu (اردو)</option>
+              </select>
             </div>
             
             <div className="voice-wave-container">
