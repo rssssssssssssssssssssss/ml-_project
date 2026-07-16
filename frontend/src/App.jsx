@@ -397,11 +397,28 @@ export default function App() {
     }
   };
 
+  const fetchDocuments = async () => {
+    try {
+      const res = await axios.get(`${backendUrl}/api/documents`);
+      if (res.data && res.data.success) {
+        setDynamicDocs(res.data.documents || []);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch indexed documents list from backend:', err.message);
+    }
+  };
+
   useEffect(() => {
     checkBackendHealth(backendUrl);
     const timer = setInterval(() => checkBackendHealth(backendUrl), 5000);
     return () => clearInterval(timer);
   }, [backendUrl]);
+
+  useEffect(() => {
+    if (isBackendOnline) {
+      fetchDocuments();
+    }
+  }, [isBackendOnline]);
 
   // Enter Copilot action (transition triggers with mechanical steel shutters)
   const handleLaunchWorkspace = () => {

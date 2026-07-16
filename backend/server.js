@@ -315,6 +315,15 @@ app.post('/api/upload', (req, res, next) => {
       dataset.push(chunk);
       return chunk;
     });
+
+    // Write updated dataset back to disk
+    try {
+      const dataPath = path.join(__dirname, 'data', 'dataset.json');
+      fs.writeFileSync(dataPath, JSON.stringify(dataset, null, 2), 'utf8');
+      console.log(`[Database] Persisted database to disk. Total chunks: ${dataset.length}`);
+    } catch (writeErr) {
+      console.error('[Database] Failed to write database to dataset.json:', writeErr.message);
+    }
     
     res.json({
       success: true,
@@ -451,6 +460,22 @@ Answer:`;
     modelUsed: connectionUsed === 'live' ? `${model} + IndicTrans2` : `${model} (Simulated)`,
     connection: connectionUsed
   });
+});
+
+app.get('/api/documents', (req, res) => {
+  try {
+    const docsMap = {};
+    dataset.forEach(chunk => {
+      const docName = chunk.document;
+      if (!docsMap[docName]) {
+        docsMap[docName] = { name: docName, category: 'User Uploaded', chunks: 0 };
+      }
+      docsMap[docName].chunks += 1;
+    });
+    res.json({ success: true, documents: Object.values(docsMap) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/', (req, res) => {
