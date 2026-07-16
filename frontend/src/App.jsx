@@ -664,8 +664,11 @@ export default function App() {
         const currentText = finalTranscript || interimTranscript;
         setVoiceTranscript(currentText);
         
+        if (currentText.trim()) {
+          setInputValue(currentText);
+        }
+        
         if (finalTranscript.trim()) {
-          setInputValue(finalTranscript);
           handleSendMessage(null, finalTranscript);
           setShowVoiceModal(false);
           recognition.stop();
@@ -675,6 +678,13 @@ export default function App() {
       recognition.onerror = (event) => {
         console.error('Speech recognition error', event.error);
         setIsListening(false);
+        if (event.error === 'network') {
+          setVoiceTranscript('Network error: Unable to connect to browser Speech servers. Please check your internet connection or try typing your message.');
+        } else if (event.error === 'not-allowed') {
+          setVoiceTranscript('Microphone blocked: Please grant microphone access in your browser settings.');
+        } else {
+          setVoiceTranscript(`Speech recognition error: ${event.error}. Please try again.`);
+        }
       };
       
       recognition.onend = () => {
@@ -761,8 +771,10 @@ export default function App() {
   const handleVoiceSend = () => {
     stopVoiceCapture();
     setShowVoiceModal(false);
-    if (inputValue.trim()) {
-      handleSendMessage(null);
+    const queryText = voiceTranscript.trim() || inputValue.trim();
+    if (queryText) {
+      setInputValue(queryText);
+      handleSendMessage(null, queryText);
     }
   };
 
