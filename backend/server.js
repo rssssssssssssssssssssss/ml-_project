@@ -500,6 +500,64 @@ app.delete('/api/documents/:filename', (req, res) => {
   }
 });
 
+const { execFile } = require('child_process');
+
+const tempAudioDir = path.join(__dirname, 'temp_audio');
+if (!fs.existsSync(tempAudioDir)) {
+  fs.mkdirSync(tempAudioDir);
+}
+
+const audioUpload = multer({ dest: tempAudioDir });
+
+app.post('/api/transcribe', audioUpload.single('audio'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file uploaded' });
+    }
+    
+    const wavPath = req.file.path;
+    const language = req.body.language || 'english';
+    
+    const langCodes = {
+      english: 'en-US',
+      hindi: 'hi-IN',
+      tamil: 'ta-IN',
+      telugu: 'te-IN',
+      kannada: 'kn-IN',
+      marathi: 'mr-IN',
+      bengali: 'bn-IN',
+      gujarati: 'gu-IN',
+      malayalam: 'ml-IN',
+      punjabi: 'pa-IN',
+      urdu: 'ur-PK'
+    };
+    
+    const langCode = langCodes[language.toLowerCase()] || 'en-US';
+    
+    const pythonPath = path.join(__dirname, '..', 'venv', 'Scripts', 'python.exe');
+    const scriptPath = path.join(__dirname, 'transcribe.py');
+    
+    execFile(pythonPath, [scriptPath, wavPath, langCode], (error, stdout, stderr) => {
+      // Clean up the temp wav file
+      try {
+        fs.unlinkSync(wavPath);
+      } catch (unlinkErr) {
+        console.error('Failed to delete temp audio file:', unlinkErr.message);
+      }
+      
+      if (error) {
+        console.error('Python speech-to-text script error:', stderr || error.message);
+        return res.status(500).json({ error: 'Speech transcription failed', details: stderr || error.message });
+      }
+      
+      const transcript = stdout.trim();
+      res.json({ success: true, transcript: transcript });
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.send('Vernacular RAG API Server is running.');
 });

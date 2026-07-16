@@ -21,6 +21,42 @@ import {
   Trash2
 } from 'lucide-react';
 
+// Helper to write string to DataView
+function writeString(view, offset, string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}
+
+// Convert Float32 PCM to 16-bit WAV
+function bufferToWav(buffer, sampleRate = 16000) {
+  const bufferLength = buffer.length;
+  const wavBuffer = new ArrayBuffer(44 + bufferLength * 2);
+  const view = new DataView(wavBuffer);
+  
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + bufferLength * 2, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // Linear PCM
+  view.setUint16(22, 1, true); // Mono channel
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, bufferLength * 2, true);
+  
+  let offset = 44;
+  for (let i = 0; i < buffer.length; i++, offset += 2) {
+    const s = Math.max(-1, Math.min(1, buffer[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  
+  return new Blob([view], { type: 'audio/wav' });
+}
+
 // Heavy Cyber-Industrial SCADA Canvas Animator Component
 function CanvasBackground() {
   const canvasRef = useRef(null);
@@ -638,6 +674,73 @@ export default function App() {
   const [voiceLanguage, setVoiceLanguage] = useState('english');
   const recognitionRef = useRef(null);
 
+  // Fallback Audio Recording Refs
+  const audioContextRef = useRef(null);
+  const scriptProcessorRef = useRef(null);
+  const micSourceRef = useRef(null);
+  const audioSamplesRef = useRef([]);
+  const recordingStreamRef = useRef(null);
+
+  const startLocalAudioRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingStreamRef.current = stream;
+      
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      audioContextRef.current = new AudioContextClass({ sampleRate: 16000 });
+      
+      micSourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
+      scriptProcessorRef.current = audioContextRef.current.createScriptProcessor(4096, 1, 1);
+      
+      audioSamplesRef.current = [];
+      scriptProcessorRef.current.onaudioprocess = (e) => {
+        const inputData = e.inputBuffer.getChannelData(0);
+        audioSamplesRef.current.push(...inputData);
+      };
+      
+      micSourceRef.current.connect(scriptProcessorRef.current);
+      scriptProcessorRef.current.connect(audioContextRef.current.destination);
+    } catch (e) {
+      console.warn('Failed to start local audio recording fallback:', e);
+    }
+  };
+
+  const stopLocalAudioRecording = () => {
+    if (scriptProcessorRef.current) {
+      try {
+        scriptProcessorRef.current.disconnect();
+        micSourceRef.current.disconnect();
+      } catch (e) {
+        console.warn(e);
+      }
+      scriptProcessorRef.current = null;
+      micSourceRef.current = null;
+    }
+    
+    if (audioContextRef.current) {
+      try {
+        audioContextRef.current.close();
+      } catch (e) {
+        console.warn(e);
+      }
+      audioContextRef.current = null;
+    }
+    
+    if (recordingStreamRef.current) {
+      try {
+        recordingStreamRef.current.getTracks().forEach(track => track.stop());
+      } catch (e) {
+        console.warn(e);
+      }
+      recordingStreamRef.current = null;
+    }
+    
+    if (audioSamplesRef.current.length > 0) {
+      return bufferToWav(audioSamplesRef.current, 16000);
+    }
+    return null;
+  };
+
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -672,6 +775,7 @@ export default function App() {
           handleSendMessage(null, finalTranscript);
           setShowVoiceModal(false);
           recognition.stop();
+          stopLocalAudioRecording();
         }
       };
       
@@ -679,11 +783,11 @@ export default function App() {
         console.error('Speech recognition error', event.error);
         setIsListening(false);
         if (event.error === 'network') {
-          setVoiceTranscript('Network error: Unable to connect to browser Speech servers. Please check your internet connection or try typing your message.');
+          setVoiceTranscript('Local browser dictation offline. Using server voice translation... Keep speaking and click SEND QUERY when done.');
         } else if (event.error === 'not-allowed') {
-          setVoiceTranscript('Microphone blocked: Please grant microphone access in your browser settings.');
+          setVoiceTranscript('Microphone blocked: Please grant microphone access in browser settings.');
         } else {
-          setVoiceTranscript(`Speech recognition error: ${event.error}. Please try again.`);
+          setVoiceTranscript(`Local recognition warning: ${event.error}. You can still click SEND QUERY.`);
         }
       };
       
@@ -730,15 +834,19 @@ export default function App() {
     }
   };
 
-  const startVoiceCapture = () => {
-    if (!recognitionRef.current) {
-      alert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
-      return;
-    }
+  const startVoiceCapture = async () => {
     setVoiceTranscript('');
     setInputValue('');
     setVoiceLanguage(selectedLanguage);
     setShowVoiceModal(true);
+    
+    // Start background WAV PCM recording
+    await startLocalAudioRecording();
+    
+    if (!recognitionRef.current) {
+      console.warn('SpeechRecognition is not supported natively in this browser.');
+      return;
+    }
     
     const langCodes = {
       english: 'en-US',
@@ -768,25 +876,62 @@ export default function App() {
     }
   };
 
-  const handleVoiceSend = () => {
+  const handleVoiceSend = async () => {
     stopVoiceCapture();
     setShowVoiceModal(false);
-    const queryText = voiceTranscript.trim() || inputValue.trim();
-    if (queryText) {
-      setInputValue(queryText);
-      handleSendMessage(null, queryText);
+    
+    // Process local PCM recording WAV blob
+    const wavBlob = stopLocalAudioRecording();
+    
+    // Check if the browser's cloud dictation succeeded
+    const browserTranscript = voiceTranscript.trim() || inputValue.trim();
+    if (browserTranscript && !browserTranscript.startsWith('Local browser dictation') && !browserTranscript.startsWith('Microphone blocked') && !browserTranscript.startsWith('Local recognition warning')) {
+      handleSendMessage(null, browserTranscript);
+      return;
+    }
+    
+    // Otherwise trigger python transcription fallback
+    if (wavBlob) {
+      setLoading(true);
+      try {
+        const formData = new FormData();
+        formData.append('audio', wavBlob, 'recording.wav');
+        formData.append('language', voiceLanguage);
+        
+        const res = await axios.post(`${backendUrl}/api/transcribe`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        
+        if (res.data && res.data.transcript) {
+          const finalVal = res.data.transcript;
+          setInputValue(finalVal);
+          handleSendMessage(null, finalVal);
+        } else {
+          alert('Could not transcribe audio. Please type your query.');
+        }
+      } catch (err) {
+        console.error('Server transcription fallback failed:', err);
+        alert('Server transcription failed: ' + (err.response?.data?.error || err.message));
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   const handleVoiceCancel = () => {
     stopVoiceCapture();
+    stopLocalAudioRecording();
     setShowVoiceModal(false);
     setInputValue('');
   };
 
-  const handleVoiceRetry = () => {
+  const handleVoiceRetry = async () => {
     setVoiceTranscript('');
     setInputValue('');
+    stopLocalAudioRecording();
+    await startLocalAudioRecording();
     if (recognitionRef.current) {
       try {
         recognitionRef.current.start();
