@@ -416,7 +416,7 @@ export default function App() {
   // Ping backend health check on mount and interval
   const checkBackendHealth = async (url) => {
     try {
-      const response = await axios.get(`${url}/api/health`, { timeout: 1500 });
+      const response = await axios.get(`${url}/api/health`, { timeout: 5000 });
       if (response.data.status === 'healthy' || response.data.status === 'degraded') {
         setIsBackendOnline(true);
         setOllamaStatus({

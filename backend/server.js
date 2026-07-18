@@ -1,3 +1,14 @@
+// Polyfills for pdf-parse inside pkg compiled environment
+if (typeof global.DOMMatrix === 'undefined') {
+  global.DOMMatrix = class DOMMatrix {};
+}
+if (typeof global.ImageData === 'undefined') {
+  global.ImageData = class ImageData {};
+}
+if (typeof global.Path2D === 'undefined') {
+  global.Path2D = class Path2D {};
+}
+
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -23,13 +34,46 @@ const upload = multer({
   limits: { fileSize: 200 * 1024 * 1024 } // 200 Megabytes upload limit
 });
 
+// Determine base directory and paths for packaging support
+const isPackaged = typeof process.pkg !== 'undefined';
+const baseDir = isPackaged ? process.cwd() : __dirname;
+
+const dataDir = path.join(baseDir, 'data');
+if (!fs.existsSync(dataDir)) {
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+  } catch (err) {
+    console.error('Failed to create data directory:', err.message);
+  }
+}
+const dataPath = path.join(dataDir, 'dataset.json');
+
+// Extract transcription script from binary virtual filesystem to disk if needed
+const scriptPath = path.join(baseDir, 'transcribe.py');
+if (isPackaged) {
+  try {
+    const virtualScriptPath = path.join(__dirname, 'transcribe.py');
+    if (fs.existsSync(virtualScriptPath)) {
+      const scriptContent = fs.readFileSync(virtualScriptPath, 'utf8');
+      fs.writeFileSync(scriptPath, scriptContent, 'utf8');
+      console.log('[App] Extracted transcribe.py helper script to disk.');
+    }
+  } catch (err) {
+    console.error('Failed to extract transcription script:', err.message);
+  }
+}
+
 // Load Dataset database
 let dataset = [];
 try {
-  const dataPath = path.join(__dirname, 'data', 'dataset.json');
-  const rawData = fs.readFileSync(dataPath, 'utf8');
-  dataset = JSON.parse(rawData);
-  console.log(`[Database] Loaded ${dataset.length} pre-existing document chunks.`);
+  if (fs.existsSync(dataPath)) {
+    const rawData = fs.readFileSync(dataPath, 'utf8');
+    dataset = JSON.parse(rawData);
+    console.log(`[Database] Loaded ${dataset.length} pre-existing document chunks.`);
+  } else {
+    fs.writeFileSync(dataPath, '[]', 'utf8');
+    console.log(`[Database] Initialized new empty database at ${dataPath}`);
+  }
 } catch (error) {
   console.error('[Database] Warning loading dataset.json:', error.message);
 }
@@ -318,7 +362,6 @@ app.post('/api/upload', (req, res, next) => {
 
     // Write updated dataset back to disk
     try {
-      const dataPath = path.join(__dirname, 'data', 'dataset.json');
       fs.writeFileSync(dataPath, JSON.stringify(dataset, null, 2), 'utf8');
       console.log(`[Database] Persisted database to disk. Total chunks: ${dataset.length}`);
     } catch (writeErr) {
@@ -344,7 +387,7 @@ app.get('/api/health', async (req, res) => {
   let indictransConnected = false;
   
   try {
-    const ollamaResponse = await axios.get(`${OLLAMA_HOST}/api/tags`, { timeout: 1500 });
+    const ollamaResponse = await axios.get(`${OLLAMA_HOST}/api/tags`, { timeout: 800 });
     const models = ollamaResponse.data.models || [];
     ollamaConnected = true;
     modelInstalled = models.some(m => m.name.toLowerCase().includes(DEFAULT_MODEL) || m.name.toLowerCase().includes('qwen2.5'));
@@ -353,7 +396,7 @@ app.get('/api/health', async (req, res) => {
   }
   
   try {
-    const transHealth = await axios.get(`${TRANSLATE_SERVICE_URL}/health`, { timeout: 1500 });
+    const transHealth = await axios.get(`${TRANSLATE_SERVICE_URL}/health`, { timeout: 800 });
     if (transHealth.data.status === 'healthy') {
       indictransConnected = true;
     }
@@ -489,7 +532,6 @@ app.delete('/api/documents/:filename', (req, res) => {
     const deletedCount = originalCount - dataset.length;
     
     // Persist updated database to disk
-    const dataPath = path.join(__dirname, 'data', 'dataset.json');
     fs.writeFileSync(dataPath, JSON.stringify(dataset, null, 2), 'utf8');
     
     console.log(`[Database] Deleted document "${filenameToDelete}". Removed ${deletedCount} chunks. Remaining: ${dataset.length}`);
@@ -502,7 +544,7 @@ app.delete('/api/documents/:filename', (req, res) => {
 
 const { execFile } = require('child_process');
 
-const tempAudioDir = path.join(__dirname, 'temp_audio');
+const tempAudioDir = path.join(baseDir, 'temp_audio');
 if (!fs.existsSync(tempAudioDir)) {
   fs.mkdirSync(tempAudioDir);
 }
@@ -534,8 +576,10 @@ app.post('/api/transcribe', audioUpload.single('audio'), (req, res) => {
     
     const langCode = langCodes[language.toLowerCase()] || 'en-US';
     
-    const pythonPath = path.join(__dirname, '..', 'venv', 'Scripts', 'python.exe');
-    const scriptPath = path.join(__dirname, 'transcribe.py');
+    let pythonPath = path.join(__dirname, '..', 'venv', 'Scripts', 'python.exe');
+    if (isPackaged || !fs.existsSync(pythonPath)) {
+      pythonPath = 'python'; // Fallback to system path python
+    }
     
     execFile(pythonPath, [scriptPath, wavPath, langCode], (error, stdout, stderr) => {
       // Clean up the temp wav file
@@ -558,8 +602,11 @@ app.post('/api/transcribe', audioUpload.single('audio'), (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
-  res.send('Vernacular RAG API Server is running.');
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {

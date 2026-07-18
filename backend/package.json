@@ -3,6 +3,16 @@
   "version": "1.0.0",
   "description": "Express backend for Vernacular RAG Chatbot",
   "main": "server.js",
+  "bin": "server.js",
+  "pkg": {
+    "assets": [
+      "public/**/*",
+      "transcribe.py"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ]
+  },
   "scripts": {
     "start": "node server.js"
   },
