@@ -153,41 +153,74 @@ function CanvasBackground() {
       steamParticles.push(new SteamParticle());
     }
 
-    // 3D Turbine Model Generation
-    const turbineVertices = [];
-    const turbineEdges = [];
-    const segments = 12;
-    const rings = 6;
-    const radiusVal = 1.3;
-    const lengthVal = 2.8;
+    // 3D Planetary Gear Model Generation
+    const planetaryVertices = [];
+    const planetaryEdges = [];
 
-    for (let r = 0; r < rings; r++) {
-      const z = -lengthVal/2 + (r / (rings - 1)) * lengthVal;
-      for (let s = 0; s < segments; s++) {
-        const angle = (s / segments) * Math.PI * 2;
-        const x = Math.cos(angle) * radiusVal;
-        const y = Math.sin(angle) * radiusVal;
-        turbineVertices.push([x, y, z]);
+    // 1. Sun gear (center cylinder)
+    const sunSegments = 12;
+    const sunRadius = 0.55;
+    const sunLength = 0.8;
+    for (let r = 0; r < 2; r++) {
+      const z = -sunLength/2 + r * sunLength;
+      for (let s = 0; s < sunSegments; s++) {
+        const angle = (s / sunSegments) * Math.PI * 2;
+        planetaryVertices.push([Math.cos(angle) * sunRadius, Math.sin(angle) * sunRadius, z]);
       }
     }
-
-    for (let r = 0; r < rings; r++) {
-      const base = r * segments;
-      for (let s = 0; s < segments; s++) {
-        const next = (s + 1) % segments;
-        turbineEdges.push([base + s, base + next]);
-      }
+    for (let s = 0; s < sunSegments; s++) {
+      planetaryEdges.push([s, (s + 1) % sunSegments]);
+      planetaryEdges.push([sunSegments + s, sunSegments + ((s + 1) % sunSegments)]);
+      planetaryEdges.push([s, sunSegments + s]);
     }
 
-    for (let r = 0; r < rings - 1; r++) {
-      const base1 = r * segments;
-      const base2 = (r + 1) * segments;
-      for (let s = 0; s < segments; s++) {
-        turbineEdges.push([base1 + s, base2 + s]);
-        if (s % 2 === 0) {
-          turbineEdges.push([base1 + s, base2 + ((s + 1) % segments)]);
+    // 2. Planets (3 orbiting gear assemblies)
+    const numPlanets = 3;
+    const planetRadius = 0.38;
+    const planetSegments = 8;
+    const orbitRadius = 1.25;
+
+    for (let p = 0; p < numPlanets; p++) {
+      const orbitAngle = (p / numPlanets) * Math.PI * 2;
+      const cx = Math.cos(orbitAngle) * orbitRadius;
+      const cy = Math.sin(orbitAngle) * orbitRadius;
+      
+      const baseIndex = planetaryVertices.length;
+      
+      for (let r = 0; r < 2; r++) {
+        const z = -sunLength/2 + r * sunLength;
+        for (let s = 0; s < planetSegments; s++) {
+          const angle = (s / planetSegments) * Math.PI * 2;
+          planetaryVertices.push([
+            cx + Math.cos(angle) * planetRadius,
+            cy + Math.sin(angle) * planetRadius,
+            z
+          ]);
         }
       }
+      
+      for (let s = 0; s < planetSegments; s++) {
+        planetaryEdges.push([baseIndex + s, baseIndex + ((s + 1) % planetSegments)]);
+        planetaryEdges.push([baseIndex + planetSegments + s, baseIndex + planetSegments + ((s + 1) % planetSegments)]);
+        planetaryEdges.push([baseIndex + s, baseIndex + planetSegments + s]);
+      }
+    }
+
+    // 3. Ring Gear (outer gear casing)
+    const ringSegments = 18;
+    const ringRadius = 1.95;
+    const ringBase = planetaryVertices.length;
+    for (let r = 0; r < 2; r++) {
+      const z = -sunLength/2 + r * sunLength;
+      for (let s = 0; s < ringSegments; s++) {
+        const angle = (s / ringSegments) * Math.PI * 2;
+        planetaryVertices.push([Math.cos(angle) * ringRadius, Math.sin(angle) * ringRadius, z]);
+      }
+    }
+    for (let s = 0; s < ringSegments; s++) {
+      planetaryEdges.push([ringBase + s, ringBase + ((s + 1) % ringSegments)]);
+      planetaryEdges.push([ringBase + ringSegments + s, ringBase + ringSegments + ((s + 1) % ringSegments)]);
+      planetaryEdges.push([ringBase + s, ringBase + ringSegments + s]);
     }
 
     // 3D Gyroscope Cube Model Generation
@@ -224,7 +257,9 @@ function CanvasBackground() {
       return [projX, projY];
     };
 
-    const draw3DWireframe = (vertices, edges, angleX, angleY, scale, cx, cy, color) => {
+    let pulseTime = 0;
+
+    const draw3DWireframe = (vertices, edges, angleX, angleY, scale, cx, cy, color, drawPulses = false) => {
       const projected = vertices.map(v => project(v, angleX, angleY, scale, cx, cy));
       
       ctx.beginPath();
@@ -239,9 +274,31 @@ function CanvasBackground() {
       projected.forEach(([x, y]) => {
         ctx.beginPath();
         ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = color.replace('0.15', '0.6').replace('0.06', '0.5').replace('0.08', '0.4');
+        ctx.fillStyle = color.replace('0.14', '0.5').replace('0.08', '0.35');
         ctx.fill();
       });
+
+      if (drawPulses) {
+        ctx.lineWidth = 2.0;
+        edges.forEach(([u, v], idx) => {
+          if (idx % 3 === 0) {
+            const t = (pulseTime + idx * 0.12) % 1.0;
+            const p1 = vertices[u];
+            const p2 = vertices[v];
+            
+            const px = p1[0] + t * (p2[0] - p1[0]);
+            const py = p1[1] + t * (p2[1] - p1[1]);
+            const pz = p1[2] + t * (p2[2] - p1[2]);
+            
+            const [projX, projY] = project([px, py, pz], angleX, angleY, scale, cx, cy);
+            
+            ctx.beginPath();
+            ctx.arc(projX, projY, 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(6, 182, 212, 0.85)';
+            ctx.fill();
+          }
+        });
+      }
     };
 
     let rotationAngle = 0;
@@ -252,17 +309,55 @@ function CanvasBackground() {
 
       rotationAngle += 0.35;
       waveOffset += 0.15;
+      pulseTime += 0.008;
 
       steamParticles.forEach((p) => {
         p.update();
         p.draw();
       });
 
-      // Render 3D Turbine behind landing screen (Faint Orange Glow)
-      draw3DWireframe(turbineVertices, turbineEdges, rotationAngle * 0.4, rotationAngle * 0.6, 1.25, width * 0.48, height * 0.46, 'rgba(249, 115, 22, 0.08)');
+      const cx = width * 0.48;
+      const cy = height * 0.46;
+
+      // Draw HUD Radar grid scan lines
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.03)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 140, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 220, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.02)';
+      ctx.beginPath();
+      ctx.moveTo(cx - 260, cy); ctx.lineTo(cx + 260, cy);
+      ctx.moveTo(cx, cy - 260); ctx.lineTo(cx, cy + 260);
+      ctx.stroke();
+
+      // Render 3D Planetary Gear Assembly (Orange Wireframe + Cyan Pulses)
+      draw3DWireframe(planetaryVertices, planetaryEdges, rotationAngle * 0.3, rotationAngle * 0.45, 1.25, cx, cy, 'rgba(249, 115, 22, 0.09)', true);
       
-      // Render 3D rotating Gyroscope Cube (Cyan Glow)
+      // Render 3D rotating Gyroscope Cube (Faint Cyan Casing)
       draw3DWireframe(cubeVertices, cubeEdges, rotationAngle * 0.8, rotationAngle * 1.2, 45, width - 110, height - 240, 'rgba(6, 182, 212, 0.14)');
+
+      // Draw Target brackets
+      const hw = 260;
+      const hh = 190;
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.15)';
+      ctx.lineWidth = 1.2;
+      
+      ctx.beginPath();
+      ctx.moveTo(cx - hw/2, cy - hh/2 + 15); ctx.lineTo(cx - hw/2, cy - hh/2); ctx.lineTo(cx - hw/2 + 15, cy - hh/2);
+      ctx.moveTo(cx + hw/2, cy - hh/2 + 15); ctx.lineTo(cx + hw/2, cy - hh/2); ctx.lineTo(cx + hw/2 - 15, cy - hh/2);
+      ctx.moveTo(cx - hw/2, cy + hh/2 - 15); ctx.lineTo(cx - hw/2, cy + hh/2); ctx.lineTo(cx - hw/2 + 15, cy + hh/2);
+      ctx.moveTo(cx + hw/2, cy + hh/2 - 15); ctx.lineTo(cx + hw/2, cy + hh/2); ctx.lineTo(cx + hw/2 - 15, cy + hh/2);
+      ctx.stroke();
+
+      ctx.font = "8px 'JetBrains Mono', Consolas, monospace";
+      ctx.fillStyle = 'rgba(249, 115, 22, 0.35)';
+      ctx.fillText('CORE: PLANETARY TRANSMISSION', cx - hw/2, cy - hh/2 - 6);
+      ctx.fillText('LOCK: TARGET NOMINAL', cx + hw/2 - 105, cy - hh/2 - 6);
+      ctx.fillText('HYDRAULIC FLOW: 14.5 GPM', cx - hw/2, cy + hh/2 + 12);
+      ctx.fillText('SPEED: 1850 RPM', cx + hw/2 - 75, cy + hh/2 + 12);
 
       logTimer++;
       if (logTimer % 80 === 0) {
