@@ -430,6 +430,35 @@ export default function App() {
   // Navigation states
   const [isEntered, setIsEntered] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [zoomActive, setZoomActive] = useState(false);
+
+  const handleViewportMouseMove = (e) => {
+    const workspace = document.querySelector('.app-container');
+    const landing = document.querySelector('.landing-content');
+    const board = workspace || landing;
+    if (!board) return;
+    
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const x = e.clientX - w / 2;
+    const y = e.clientY - h / 2;
+    
+    const factorX = 6;
+    const factorY = 8;
+    const rx = -(y / (h / 2)) * factorX + 3;
+    const ry = (x / (w / 2)) * factorY - 4;
+    
+    board.style.transform = `perspective(2000px) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(0.5deg) scale3d(0.99, 0.99, 0.99)`;
+  };
+
+  const handleViewportMouseLeave = () => {
+    const workspace = document.querySelector('.app-container');
+    const landing = document.querySelector('.landing-content');
+    const board = workspace || landing;
+    if (board) {
+      board.style.transform = 'perspective(2000px) rotateX(3deg) rotateY(-4deg) rotateZ(0.5deg) scale3d(1, 1, 1)';
+    }
+  };
 
 
 
@@ -1024,7 +1053,12 @@ export default function App() {
   // 1. RENDER BOOT SCREEN
   if (!isEntered) {
     return (
-      <div className={`landing-container ${isExiting ? 'exit' : ''}`}>
+      <div 
+        className="perspective-viewport"
+        onMouseMove={handleViewportMouseMove}
+        onMouseLeave={handleViewportMouseLeave}
+      >
+        <div className={`landing-container ${isExiting ? 'exit' : ''}`}>
         <div className="landing-bg-img" />
         <div className="blueprint-grid-overlay" />
         <div className="hazard-bar-top" />
@@ -1087,12 +1121,18 @@ export default function App() {
           <div className="shutter-door-label">ENGINES ONLINE: BOOTING COGNITIVE RAG</div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // 2. RENDER MAIN COGNITIVE COCKPIT
   return (
-    <div className="app-container">
+    <div 
+      className="perspective-viewport"
+      onMouseMove={handleViewportMouseMove}
+      onMouseLeave={handleViewportMouseLeave}
+    >
+      <div className="app-container">
       <header className="app-header">
         <div className="brand-section">
           <div className="logo-container">🤖</div>
@@ -1597,6 +1637,7 @@ export default function App() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

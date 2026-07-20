@@ -201,13 +201,24 @@ button, input, select, textarea {
 .landing-content {
   position: relative;
   z-index: 10;
-  width: 100%;
+  width: 90%;
   max-width: 960px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 36px;
   text-align: center;
+  background: rgba(11, 12, 16, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 40px;
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
+  border-radius: var(--radius-lg);
+  transform: perspective(2000px) rotateX(3deg) rotateY(-4deg) rotateZ(0.5deg);
+  transform-style: preserve-3d;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+  transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: transform;
 }
 
 .landing-header {
@@ -565,18 +576,38 @@ button, input, select, textarea {
   }
 }
 
+/* 3D Isometric / Cockpit Viewport Styling */
+.perspective-viewport {
+  perspective: 2000px;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #040406;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
 /* MAIN DASHBOARD APPLICATION LAYOUT */
 .app-container {
   display: grid;
   grid-template-columns: 300px 1fr 380px;
-  grid-template-rows: 64px calc(100vh - 64px);
+  grid-template-rows: 64px calc(92vh - 64px);
   grid-template-areas:
     "header header header"
     "sidebar chat visualizer";
-  height: 100vh;
-  width: 100vw;
+  height: 92vh;
+  width: 96vw;
   background-color: var(--bg-color);
   overflow: hidden;
+  border: 1px solid rgba(var(--primary-rgb), 0.25);
+  border-radius: var(--radius-lg);
+  transform: perspective(2000px) rotateX(3deg) rotateY(-4deg) rotateZ(0.5deg);
+  transform-style: preserve-3d;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.75), inset 0 0 80px rgba(var(--primary-rgb), 0.04);
+  transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: transform;
   animation: dashboardFadeIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 

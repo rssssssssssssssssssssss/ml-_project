@@ -22,3 +22,7 @@ dist/
 build/
 *.log
 .system_generated/
+
+# Compiled Standalone Binaries
+*.exe
+**/chatbot.exe
