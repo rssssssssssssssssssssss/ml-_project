@@ -1300,9 +1300,30 @@ export default function App() {
               </label>
             </div>
 
-            <div style={{ padding: '8px', borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(0,0,0,0.1)', fontSize: '0.72rem', border: '1px solid var(--card-border)' }}>
-              <span style={{ fontWeight: 600, color: isBackendOnline ? 'var(--success)' : 'var(--warning)' }}>Status:</span>{' '}
-              <span style={{ color: 'var(--text-color)' }}>{ollamaStatus.details}</span>
+            <div className="telemetry-widget" style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              padding: '12px 10px', 
+              borderRadius: 'var(--radius-sm)', 
+              backgroundColor: 'rgba(0,0,0,0.15)', 
+              fontSize: '0.72rem', 
+              border: '1px solid var(--card-border)',
+              marginTop: '12px',
+              gap: '10px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className={`warning-beacon ${isBackendOnline ? 'online' : 'offline'}`} />
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-color)' }}>System Diagnostic</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.62rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                    {ollamaStatus.details || 'Awaiting telemetry...'}
+                  </div>
+                </div>
+              </div>
+              <div className={`telemetry-fan ${loading ? 'processing' : ''}`} title="Core cooling fan speed">
+                <div className="telemetry-fan-blades" />
+              </div>
             </div>
           </div>
         </div>

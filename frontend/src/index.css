@@ -1746,3 +1746,69 @@ input:checked + .switch-slider:before {
 .config-card > *, .doc-item > *, .upload-dropzone > *, .source-item-ref > *, .message-bubble > * {
   transform: translateZ(15px);
 }
+
+/* Ventilation Fan & Warning Beacon SCADA Widgets */
+.telemetry-fan {
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: rgba(0,0,0,0.2);
+}
+.telemetry-fan-blades {
+  width: 20px;
+  height: 20px;
+  background: repeating-conic-gradient(from 0deg, var(--primary) 0deg 45deg, transparent 45deg 90deg);
+  border-radius: 50%;
+  animation: spinFan 2.5s linear infinite;
+}
+.telemetry-fan.processing .telemetry-fan-blades {
+  animation: spinFan 0.3s linear infinite; /* Spin rapidly on active pipeline query */
+}
+@keyframes spinFan {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.warning-beacon {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--warning);
+  box-shadow: 0 0 8px var(--warning);
+  animation: beaconPulse 1.4s infinite;
+}
+.warning-beacon.online {
+  background-color: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+.warning-beacon.offline {
+  background-color: var(--error);
+  box-shadow: 0 0 8px var(--error);
+}
+@keyframes beaconPulse {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50% { opacity: 0.3; filter: brightness(0.7); }
+}
+
+/* Sweeping CRT Scanline Laser Effect */
+.perspective-viewport::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(to bottom, rgba(249, 115, 22, 0.12), rgba(249, 115, 22, 0));
+  pointer-events: none;
+  animation: laserSweep 6s linear infinite;
+  z-index: 100;
+}
+@keyframes laserSweep {
+  0% { top: -4%; }
+  100% { top: 104%; }
+}
