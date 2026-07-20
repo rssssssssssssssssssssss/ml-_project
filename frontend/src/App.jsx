@@ -57,6 +57,27 @@ function bufferToWav(buffer, sampleRate = 16000) {
   return new Blob([view], { type: 'audio/wav' });
 }
 
+// 3D Parallax Hover Utility Handlers
+function handleCardMouseMove(e) {
+  const card = e.currentTarget;
+  const box = card.getBoundingClientRect();
+  const x = e.clientX - box.left - box.width / 2;
+  const y = e.clientY - box.top - box.height / 2;
+  
+  const factor = 8;
+  const rx = -(y / (box.height / 2)) * factor;
+  const ry = (x / (box.width / 2)) * factor;
+  
+  card.style.transform = `perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg) scale3d(1.02, 1.02, 1.02)`;
+  card.style.transition = 'none';
+}
+
+function handleCardMouseLeave(e) {
+  const card = e.currentTarget;
+  card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+  card.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+}
+
 // Heavy Cyber-Industrial SCADA Canvas Animator Component
 function CanvasBackground() {
   const canvasRef = useRef(null);
@@ -132,41 +153,95 @@ function CanvasBackground() {
       steamParticles.push(new SteamParticle());
     }
 
-    const drawGear = (x, y, radius, teeth, angle, color) => {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(angle);
-      ctx.beginPath();
-      
-      for (let i = 0; i < teeth; i++) {
-        const theta = (i * 2 * Math.PI) / teeth;
-        ctx.lineTo(Math.cos(theta) * radius, Math.sin(theta) * radius);
-        ctx.lineTo(
-          Math.cos(theta + 0.05) * (radius + 12),
-          Math.sin(theta + 0.05) * (radius + 12)
-        );
-        ctx.lineTo(
-          Math.cos(theta + 0.12) * (radius + 12),
-          Math.sin(theta + 0.12) * (radius + 12)
-        );
-        ctx.lineTo(Math.cos(theta + 0.17) * radius, Math.sin(theta + 0.17) * radius);
+    // 3D Turbine Model Generation
+    const turbineVertices = [];
+    const turbineEdges = [];
+    const segments = 12;
+    const rings = 6;
+    const radiusVal = 1.3;
+    const lengthVal = 2.8;
+
+    for (let r = 0; r < rings; r++) {
+      const z = -lengthVal/2 + (r / (rings - 1)) * lengthVal;
+      for (let s = 0; s < segments; s++) {
+        const angle = (s / segments) * Math.PI * 2;
+        const x = Math.cos(angle) * radiusVal;
+        const y = Math.sin(angle) * radiusVal;
+        turbineVertices.push([x, y, z]);
       }
-      ctx.closePath();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+    }
 
-      ctx.beginPath();
-      ctx.arc(0, 0, radius - 20, 0, Math.PI * 2);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
-      ctx.stroke();
+    for (let r = 0; r < rings; r++) {
+      const base = r * segments;
+      for (let s = 0; s < segments; s++) {
+        const next = (s + 1) % segments;
+        turbineEdges.push([base + s, base + next]);
+      }
+    }
 
+    for (let r = 0; r < rings - 1; r++) {
+      const base1 = r * segments;
+      const base2 = (r + 1) * segments;
+      for (let s = 0; s < segments; s++) {
+        turbineEdges.push([base1 + s, base2 + s]);
+        if (s % 2 === 0) {
+          turbineEdges.push([base1 + s, base2 + ((s + 1) % segments)]);
+        }
+      }
+    }
+
+    // 3D Gyroscope Cube Model Generation
+    const cubeVertices = [
+      [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
+      [-1, -1, 1],  [1, -1, 1],  [1, 1, 1],  [-1, 1, 1]
+    ];
+    const cubeEdges = [
+      [0, 1], [1, 2], [2, 3], [3, 0],
+      [4, 5], [5, 6], [6, 7], [7, 4],
+      [0, 4], [1, 5], [2, 6], [3, 7]
+    ];
+
+    const project = (point, angleX, angleY, scale, cx, cy) => {
+      let [x, y, z] = point;
+      
+      const radY = angleY * Math.PI / 180;
+      const cosY = Math.cos(radY);
+      const sinY = Math.sin(radY);
+      const x1 = x * cosY - z * sinY;
+      const z1 = x * sinY + z * cosY;
+      
+      const radX = angleX * Math.PI / 180;
+      const cosX = Math.cos(radX);
+      const sinX = Math.sin(radX);
+      const y2 = y * cosX - z1 * sinX;
+      const z2 = y * sinX + z1 * cosX;
+      
+      const fov = 380;
+      const distance = 4.5;
+      const projX = (x1 * fov) / (z2 + distance) * scale + cx;
+      const projY = (y2 * fov) / (z2 + distance) * scale + cy;
+      
+      return [projX, projY];
+    };
+
+    const draw3DWireframe = (vertices, edges, angleX, angleY, scale, cx, cy, color) => {
+      const projected = vertices.map(v => project(v, angleX, angleY, scale, cx, cy));
+      
       ctx.beginPath();
-      ctx.arc(0, 0, 10, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.restore();
+      edges.forEach(([u, v]) => {
+        ctx.moveTo(projected[u][0], projected[u][1]);
+        ctx.lineTo(projected[v][0], projected[v][1]);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.0;
+      ctx.stroke();
+      
+      projected.forEach(([x, y]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = color.replace('0.15', '0.6').replace('0.06', '0.5').replace('0.08', '0.4');
+        ctx.fill();
+      });
     };
 
     let rotationAngle = 0;
@@ -175,7 +250,7 @@ function CanvasBackground() {
     const animate = () => {
       ctx.clearRect(0, 0, width, height);
 
-      rotationAngle += 0.005;
+      rotationAngle += 0.35;
       waveOffset += 0.15;
 
       steamParticles.forEach((p) => {
@@ -183,9 +258,11 @@ function CanvasBackground() {
         p.draw();
       });
 
-      drawGear(width * 0.1, height * 0.25, 80, 12, rotationAngle, 'rgba(249, 115, 22, 0.06)');
-      drawGear(width * 0.1 + 104, height * 0.25 + 104, 50, 8, -rotationAngle * 1.6, 'rgba(249, 115, 22, 0.04)');
-      drawGear(width * 0.88, height * 0.78, 120, 16, rotationAngle * 0.7, 'rgba(249, 115, 22, 0.05)');
+      // Render 3D Turbine behind landing screen (Faint Orange Glow)
+      draw3DWireframe(turbineVertices, turbineEdges, rotationAngle * 0.4, rotationAngle * 0.6, 1.25, width * 0.48, height * 0.46, 'rgba(249, 115, 22, 0.08)');
+      
+      // Render 3D rotating Gyroscope Cube (Cyan Glow)
+      draw3DWireframe(cubeVertices, cubeEdges, rotationAngle * 0.8, rotationAngle * 1.2, 45, width - 110, height - 240, 'rgba(6, 182, 212, 0.14)');
 
       logTimer++;
       if (logTimer % 80 === 0) {
@@ -257,8 +334,9 @@ function CanvasBackground() {
       ctx.lineWidth = 1;
       for (let t = 0; t <= 5; t++) {
         const ang = Math.PI + (t * Math.PI) / 5;
+        const scaleRadius = t % 5 === 0 ? gaugeR - 6 : gaugeR - 4;
         ctx.beginPath();
-        ctx.moveTo(gaugeX + Math.cos(ang) * (gaugeR - 4), gaugeY + Math.sin(ang) * (gaugeR - 4));
+        ctx.moveTo(gaugeX + Math.cos(ang) * scaleRadius, gaugeY + Math.sin(ang) * scaleRadius);
         ctx.lineTo(gaugeX + Math.cos(ang) * gaugeR, gaugeY + Math.sin(ang) * gaugeR);
         ctx.stroke();
       }
@@ -330,6 +408,8 @@ function MessageSources({ chunks, onViewChunk }) {
                 className="source-item-ref"
                 style={{ cursor: 'pointer' }}
                 onClick={() => onViewChunk(chunk)}
+                onMouseMove={handleCardMouseMove}
+                onMouseLeave={handleCardMouseLeave}
               >
                 <div className="source-item-ref-title">
                   <span>{chunk.document} - {chunk.title}</span>
@@ -350,7 +430,7 @@ export default function App() {
   // Navigation states
   const [isEntered, setIsEntered] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
-  const [zoomActive, setZoomActive] = useState(false);
+
 
 
 
@@ -1046,7 +1126,7 @@ export default function App() {
           <span className="section-label">
             <Settings size={14} /> Server Configuration
           </span>
-          <div className="config-card">
+          <div className="config-card" onMouseMove={handleCardMouseMove} onMouseLeave={handleCardMouseLeave}>
             <div className="form-group">
               <label className="form-label">Express Backend URL</label>
               <input
@@ -1103,7 +1183,7 @@ export default function App() {
               </div>
             ) : (
               dynamicDocs.map((doc, idx) => (
-                <div key={idx} className="doc-item">
+                <div key={idx} className="doc-item" onMouseMove={handleCardMouseMove} onMouseLeave={handleCardMouseLeave}>
                   <div className="doc-name" style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
                     <FileText size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
                     <span title={doc.name} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</span>
@@ -1142,6 +1222,8 @@ export default function App() {
                 transition: 'all 0.2s ease',
               }}
               className="upload-dropzone"
+              onMouseMove={handleCardMouseMove}
+              onMouseLeave={handleCardMouseLeave}
             >
               <input
                 type="file"
@@ -1226,7 +1308,7 @@ export default function App() {
                   {msg.sender === 'user' ? 'Operator' : 'AI Assistant'}
                   {msg.sender === 'assistant' && ` • Response in ${getLanguageLabel(msg.language)}`}
                 </div>
-                <div className="message-bubble">
+                <div className="message-bubble" onMouseMove={handleCardMouseMove} onMouseLeave={handleCardMouseLeave}>
                   <p style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</p>
 
                   {msg.sender === 'assistant' && msg.chunks && msg.chunks.length > 0 && (

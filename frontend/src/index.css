@@ -1697,3 +1697,21 @@ input:checked + .switch-slider:before {
 .btn-voice-action.danger:hover:not(:disabled) {
   background-color: #dc2626;
 }
+
+/* 3D Model Perspective & Card Tilt Styling */
+.config-card, .doc-item, .upload-dropzone, .source-item-ref, .message-bubble {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.4s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+}
+
+.config-card:hover, .doc-item:hover, .upload-dropzone:hover, .source-item-ref:hover, .message-bubble:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.35), 0 10px 10px -5px rgba(0, 0, 0, 0.25);
+  border-color: rgba(var(--primary-rgb), 0.3) !important;
+}
+
+/* Extrude content slightly in 3D inside cards */
+.config-card > *, .doc-item > *, .upload-dropzone > *, .source-item-ref > *, .message-bubble > * {
+  transform: translateZ(15px);
+}
