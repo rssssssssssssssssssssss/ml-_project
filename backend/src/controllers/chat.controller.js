@@ -28,16 +28,17 @@ export async function transcribeAudio(req, res) {
             });
         }
 
-        const language = req.body.language || "auto";
+        const language = req.body.language || req.query.language || "auto";
 
         const formData = new FormData();
         const blob = new Blob([req.file.buffer], { type: req.file.mimetype || "audio/wav" });
         formData.append("file", blob, req.file.originalname || "recording.wav");
-        if (language && language !== "auto") {
-            formData.append("language", language);
-        }
+        formData.append("form_lang", language);
 
-        const response = await axios.post("http://127.0.0.1:8000/transcribe", formData);
+        // Send language both as Query and Form for 100% guarantee
+        const targetUrl = `http://127.0.0.1:8000/transcribe?language=${encodeURIComponent(language)}`;
+
+        const response = await axios.post(targetUrl, formData);
 
         res.json(response.data);
     } catch (err) {

@@ -6,9 +6,41 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
 MODEL_ID = "openai/whisper-small"
 
+# Language ISO map and regional prompt biases to guide decoding into native scripts
+LANGUAGE_MAP = {
+    "telugu": "te",
+    "te": "te",
+    "tamil": "ta",
+    "ta": "ta",
+    "kannada": "kn",
+    "kn": "kn",
+    "malayalam": "ml",
+    "ml": "ml",
+    "hindi": "hi",
+    "hi": "hi",
+    "bengali": "bn",
+    "bn": "bn",
+    "marathi": "mr",
+    "mr": "mr",
+    "gujarati": "gu",
+    "gu": "gu",
+    "english": "en",
+    "en": "en",
+}
+
+# Initial prompts conditioning Whisper decoder to use native script instead of transliterating/hallucinating Hindi
+INITIAL_PROMPTS = {
+    "te": "బ్యాంకు, ఖాతా, రుణం, వ్యక్తిగత రుణం, గృహ రుణం, వేదాంత బ్యాంకు.",
+    "ta": "வங்கி, கணக்கு, கடன், தனிநபர் கடன், வீட்டுக் கடன், வேதாந்தா வங்கி.",
+    "kn": "ಬ್ಯಾಂಕ್, ಖಾತೆ, ಸಾಲ, ವೈಯಕ್ತಿಕ ಸಾಲ, ಗೃಹ ಸಾಲ, ವೇದಾಂತ ಬ್ಯಾಂಕ್.",
+    "ml": "ബാങ്ക്, അക്കൗണ്ട്, വായ്പ, ഭവന വായ്പ, വേദാന്ത ബാങ്ക്.",
+    "hi": "बैंक, खाता, ऋण, व्यक्तिगत ऋण, गृह ऋण, वेदांता बैंक.",
+    "en": "Bank, account, loan, personal loan, home loan, Vedranta Bank.",
+}
+
 class WhisperSTTService:
     def __init__(self):
-        print("Initializing Whisper STT Service (openai/whisper-small)...")
+        print("Initializing Optimized Whisper STT Service (openai/whisper-small)...")
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
         self.dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
@@ -34,32 +66,40 @@ class WhisperSTTService:
 
     def transcribe(self, audio_bytes: bytes, language: str = None) -> dict:
         """
-        Transcribes audio bytes into text.
-        If language is specified (e.g. 'telugu', 'tamil', 'hindi', 'kannada', 'english'),
-        Whisper forces decoding in that language without misidentifying it.
+        Transcribes audio bytes into text with high-accuracy native language decoding.
         """
         try:
             audio_data, sample_rate = sf.read(io.BytesIO(audio_bytes))
         except Exception:
             audio_data, sample_rate = librosa.load(io.BytesIO(audio_bytes), sr=16000)
 
-        # Mono conversion
+        # Convert to mono if multi-channel
         if hasattr(audio_data, "ndim") and audio_data.ndim > 1:
             audio_data = audio_data.mean(axis=1)
 
         # Resample to 16kHz
         if sample_rate != 16000:
             audio_data = librosa.resample(audio_data, orig_sr=sample_rate, target_sr=16000)
-            sample_rate = 16000
 
         generate_kwargs = {
-            "task": "transcribe"
+            "task": "transcribe",
+            "num_beams": 3,
+            "repetition_penalty": 1.2,
         }
 
-        # If language is provided (and not 'auto'), explicitly guide Whisper
-        if language and language.lower() not in ["auto", "all", ""]:
+        # Resolve language code
+        target_lang = None
+        if language:
             lang_clean = language.lower().strip()
-            generate_kwargs["language"] = lang_clean
+            target_lang = LANGUAGE_MAP.get(lang_clean, lang_clean)
+
+        if target_lang and target_lang not in ["auto", "all", ""]:
+            # Set exact language code (e.g. 'te' for Telugu)
+            generate_kwargs["language"] = target_lang
+
+            # Provide initial prompt in the target script to lock the language script
+            if target_lang in INITIAL_PROMPTS:
+                generate_kwargs["initial_prompt"] = INITIAL_PROMPTS[target_lang]
 
         result = self.pipe(
             audio_data,
@@ -68,7 +108,10 @@ class WhisperSTTService:
         )
 
         text = result.get("text", "").strip()
+        print(f"[STT Transcription] target_lang={target_lang} -> '{text}'")
+
         return {
             "success": True,
-            "text": text
+            "text": text,
+            "language": target_lang
         }

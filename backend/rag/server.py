@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -42,14 +42,19 @@ def retrieve(request: QueryRequest):
 @app.post("/transcribe")
 async def transcribe(
     file: UploadFile = File(...),
-    language: Optional[str] = Form(None)
+    language: Optional[str] = Query(None),
+    form_lang: Optional[str] = Form(None)
 ):
     try:
         audio_bytes = await file.read()
         if not audio_bytes:
             raise HTTPException(status_code=400, detail="Empty audio file")
 
-        result = stt_service.transcribe(audio_bytes, language=language)
+        # Accept language from query param or form param
+        selected_lang = language or form_lang or "auto"
+        print(f"Incoming /transcribe request with language: {selected_lang}")
+
+        result = stt_service.transcribe(audio_bytes, language=selected_lang)
         return result
     except Exception as e:
         print(f"Transcription error: {e}")
