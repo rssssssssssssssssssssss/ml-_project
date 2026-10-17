@@ -63,94 +63,43 @@ The system retrieves context from company documents using semantic search (**FAI
 
 ---
 
-## Getting Started (Step-by-Step Setup for New Users)
-
-Follow these steps to set up and run the entire project from scratch on your machine.
-
-### Prerequisites
+## Prerequisites
 
 Ensure you have the following installed on your machine:
-- **Git**: [https://git-scm.com/](https://git-scm.com/)
 - **Node.js (v18+) & npm**: [https://nodejs.org/](https://nodejs.org/)
 - **Python (3.10 to 3.12)**: [https://www.python.org/](https://www.python.org/)
 - **Ollama**: [https://ollama.com/](https://ollama.com/)
+- **Git**: [https://git-scm.com/](https://git-scm.com/)
 
 ---
 
-### Step 1: Clone the Repository
+## Initial Setup (One-time only)
 
-Clone the project and checkout the `chakri` branch:
-
+### 1. Install Python Dependencies & Offline Embedding Model
 ```bash
-git clone https://github.com/rssssssssssssssssssssss/ml-_project.git
-cd ml-_project
-git checkout chakri
-```
+# From the project root
+pip install -r requirements.txt
 
----
-
-### Step 2: Install Python Dependencies & Download STT/Embedding Models
-
-1. **Install Python packages**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Download & Save the Embedding Model (`bge-m3`)**:
-   Run the model downloader script to cache the BGE-M3 model locally:
-   ```bash
-   cd backend
-   python save_model.py
-   cd ..
-   ```
-
-3. **(Optional) Build / Re-index Document Embeddings**:
-   If you add or modify PDFs in `knowledge/organizations/sample_company/documents/`:
-   ```bash
-   cd backend/rag
-   python ingest.py
-   cd ../..
-   ```
-
----
-
-### Step 3: Set Up & Pull the Ollama LLM
-
-1. Start the Ollama background daemon:
-   ```bash
-   ollama serve
-   ```
-
-2. Pull the language model in a separate terminal:
-   ```bash
-   ollama pull qwen2.5:7b
-   ```
-
----
-
-### Step 4: Install Node.js Backend Dependencies
-
-```bash
+# Download and cache BGE-M3 model locally
 cd backend
-npm install
-```
-
-Create or verify `backend/.env`:
-```env
-PORT=5000
-OLLAMA_MODEL=qwen2.5:7b
-OLLAMA_HOST=http://localhost:11434
-```
-Return to root:
-```bash
+python save_model.py
 cd ..
 ```
 
----
-
-### Step 5: Install Frontend Dependencies
-
+### 2. Download the Ollama LLM
+Make sure Ollama is running (`ollama serve`), then pull the model:
 ```bash
+ollama pull qwen2.5:7b
+```
+
+### 3. Install Node.js Backend & Frontend Dependencies
+```bash
+# Backend dependencies
+cd backend
+npm install
+cd ..
+
+# Frontend dependencies
 cd frontend
 npm install
 cd ..
@@ -158,47 +107,103 @@ cd ..
 
 ---
 
-## Running the Application
+## How to Start the Application (Step-by-Step)
 
-Open 3 separate terminals (or terminal tabs) to run the services:
+To run the full stack, you need to start **Ollama**, the **FastAPI RAG/STT service**, the **Express API gateway**, and the **Vite React UI**.
 
-### Terminal 1: FastAPI RAG & Whisper STT Service
-```bash
+Open separate terminal windows for each service:
+
+### Step 1: Start Ollama (LLM Engine)
+```powershell
+ollama serve
+```
+> Starts the local LLM server at `http://localhost:11434`.
+
+---
+
+### Step 2: Start the FastAPI Service (RAG + Whisper STT)
+In a new terminal:
+```powershell
 cd backend
 python -m uvicorn rag.server:app --port 8000
 ```
-> Runs at `http://127.0.0.1:8000`. On first launch, Whisper STT will automatically load its weights into GPU/CPU memory.
+> Runs at `http://127.0.0.1:8000`. On first start, it loads `BAAI/bge-m3` and `openai/whisper-small` into GPU/CPU memory.
 
 ---
 
-### Terminal 2: Express Backend Server
-```bash
+### Step 3: Start the Express Backend API
+In a new terminal:
+```powershell
 cd backend
 npm run dev
 ```
-> Runs at `http://localhost:5000`.
+> Runs at `http://localhost:5000`. Acts as the central orchestrator routing requests to FastAPI and Ollama.
 
 ---
 
-### Terminal 3: Vite React Frontend
-```bash
+### Step 4: Start the Frontend UI
+In a new terminal:
+```powershell
 cd frontend
 npm run d
 ```
-> Opens in your browser at `http://localhost:5173/`.
+> Opens the client application at `http://localhost:5173/`.
 
 ---
 
 ## Using the Chatbot
 
 1. Open **`http://localhost:5173/`** in your browser.
-2. **Text Query**: Type your question in any language (e.g., *"Where is Vedranta Bank headquarters?"* or *"What is the home loan eligibility?"*).
+2. **Text Query**: Type questions about bank accounts, loans, branch details, or policies in English, Telugu, Hindi, Tamil, Kannada, or Malayalam.
 3. **Voice Query**:
-   - Choose your spoken language in the dropdown (e.g. **Telugu (తెలుగు)**, **Hindi (हिन्दी)**, **Tamil (தமிழ்)**, or **English**).
-   - Click the **Microphone** button.
-   - Speak your question into your microphone.
-   - Click the red **Stop** button.
-   - Whisper will automatically transcribe your speech and submit it to the chatbot.
+   - Select your language in the dropdown (e.g. *Telugu*, *Hindi*, *Tamil*, or *English*).
+   - Click the **Microphone** button to speak.
+   - Click the red **Stop** button when done.
+   - Whisper transcribes your voice automatically, retrieves policy context, and prompts Qwen to respond in the selected language.
+
+---
+
+## How to Stop All Models and the Application
+
+When you are done using the application, follow these steps to stop all running processes, release your CPU/GPU, and free up system memory:
+
+### 1. Stop Frontends & Servers
+In each open terminal window, press:
+```
+Ctrl + C
+```
+Terminate Terminal 1 (Ollama), Terminal 2 (FastAPI), Terminal 3 (Express), and Terminal 4 (Vite Frontend).
+
+---
+
+### 2. Force Stop Background Ollama Daemon & App
+If Ollama was launched as a Windows background tray app or background daemon, terminate it using PowerShell:
+
+```powershell
+taskkill /F /IM ollama.exe /T
+taskkill /F /IM "ollama app.exe" /T
+```
+
+---
+
+### 3. Stop Any Lingering Python / Uvicorn Processes
+If the Whisper or FastAPI python process remains active in the background:
+
+```powershell
+# In PowerShell:
+Stop-Process -Name python, py -Force -ErrorAction SilentlyContinue
+```
+*(Or use `taskkill /F /IM python.exe /T`)*
+
+---
+
+### 4. Verify That All Models & Background Tasks Are Stopped
+Check if any Ollama, Whisper, or Python model processes are still consuming memory:
+
+```powershell
+Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -match "ollama|python|uvicorn" }
+```
+If the command outputs nothing (or only your IDE's language server), all model processes and servers are completely halted and your system resources are fully cleared.
 
 ---
 
@@ -259,4 +264,4 @@ ml-_project/
 
 **A.S. Chakradhar**  
 Computer Science and Engineering  
-Amrita Vishwa Vidyapeetham  
+Amrita Vishwa Vidyapeetham
