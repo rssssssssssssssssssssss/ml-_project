@@ -64,7 +64,7 @@ function ChatBox({ messages, loading, onSelectPrompt }) {
                             Welcome to <span className="bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Vedranta Bank</span>
                         </h2>
                         <p className="text-sm sm:text-base text-slate-500 max-w-xl mx-auto leading-relaxed mb-8">
-                            Your intelligent AI assistant for policy verification, retail loans, account inquiries, and services. Ask via voice or text in English or Hindi.
+                            Your intelligent AI assistant for policy verification, retail loans, account inquiries, and services.
                         </p>
 
                         {/* Quick Prompts Grid */}
