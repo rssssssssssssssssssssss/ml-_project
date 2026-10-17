@@ -4,11 +4,7 @@ import API from "../services/api";
 
 const LANGUAGES = [
     { code: "auto", label: "Auto Detect" },
-    { code: "telugu", label: "Telugu (తెలుగు)" },
     { code: "hindi", label: "Hindi (हिन्दी)" },
-    { code: "tamil", label: "Tamil (தமிழ்)" },
-    { code: "kannada", label: "Kannada (ಕನ್ನಡ)" },
-    { code: "malayalam", label: "Malayalam (മലയാളം)" },
     { code: "english", label: "English" },
 ];
 
