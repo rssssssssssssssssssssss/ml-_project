@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+torch
+torchaudio
+transformers
+sentence-transformers
+faiss-cpu
+soundfile
+librosa
+python-multipart
+pymupdf
+pypdf
+numpy
+requests

@@ -1,327 +1,262 @@
-# Vernacular Company Policy Chatbot
+# Vernacular Company Policy & Banking Chatbot
 
-A Retrieval-Augmented Generation (RAG) based multilingual chatbot that answers company policy-related questions using local Large Language Models (LLMs). The system retrieves relevant information from company documents using semantic search and generates accurate responses using Ollama.
+A Retrieval-Augmented Generation (RAG) multilingual AI assistant that answers organization and banking-related questions (e.g., **Vedranta Bank** policies, accounts, loans, and customer service) using local Large Language Models (LLMs) and local Speech-to-Text (STT).
+
+The system retrieves context from company documents using semantic search (**FAISS** + **BAAI/bge-m3**), supports multilingual voice queries with **OpenAI Whisper STT**, and generates grounded answers using local **Ollama (Qwen 2.5:7B)**.
 
 ---
 
-## Features
+## Key Features
 
-- RAG (Retrieval-Augmented Generation) pipeline
-- Local LLM inference using Ollama (Qwen 2.5:7B)
-- FastAPI-based persistent retrieval service
-- FAISS vector database for semantic search
-- Sentence Transformers (BAAI/bge-m3) for embeddings
-- Conversation memory support
-- Multilingual question answering
-- React frontend with responsive chat interface
-- Express.js backend API
-- Completely local execution (except initial model downloads)
+- **RAG Pipeline**: Semantic search over organizational documents via FAISS vector database.
+- **Local Speech-to-Text (STT)**: Direct in-browser microphone recording with **`openai/whisper-small`** running locally on GPU/CPU for English and native Indian languages (Telugu, Hindi, Tamil, Kannada, Malayalam, etc.).
+- **Local LLM Inference**: Privacy-friendly inference using **Ollama (Qwen 2.5:7B)**.
+- **Multilingual Support**: Text and voice queries in regional languages with automatic language-matched responses.
+- **Persistent Retrieval Service**: FastAPI server caching the embedding model, vector index, and STT pipeline.
+- **Modern Responsive Frontend**: React + Vite + Tailwind CSS interface with chat memory and language selection.
 
 ---
 
 ## Tech Stack
 
-### Frontend
-
-- React
-- Vite
-- Axios
-- CSS
-
-### Backend
-
-- Node.js
-- Express.js
-- Ollama
-- Axios
-
-### Retrieval Service
-
-- FastAPI
-- FAISS
-- Sentence Transformers
-- BAAI/bge-m3
-
-### Language Model
-
-- Qwen2.5:7B (Ollama)
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React 19, Vite, Tailwind CSS, Lucide Icons, Axios |
+| **Backend API** | Node.js, Express.js, Multer |
+| **RAG & STT Service** | Python 3.12, FastAPI, Uvicorn, FAISS, PyTorch, Hugging Face Transformers |
+| **Embedding Model** | `BAAI/bge-m3` |
+| **Speech-to-Text Model** | `openai/whisper-small` |
+| **Language Model** | `qwen2.5:7b` via Ollama |
 
 ---
 
 ## Project Architecture
 
 ```
-                    User
-                     │
-                     ▼
-            React Frontend
-                     │
-                     ▼
-             Express Backend
-                     │
-      ┌──────────────┴──────────────┐
-      │                             │
-      ▼                             ▼
- FastAPI RAG Service          Ollama (Qwen2.5)
-      │
-      ▼
- Sentence Transformer (bge-m3)
-      │
-      ▼
-   FAISS Vector DB
-      │
-      ▼
- Company Documents
+                    User (Text or Voice)
+                             │
+                             ▼
+                    React Frontend (Vite)
+                             │
+              ┌──────────────┴──────────────┐
+       (Text Queries)                (Voice Audio WAV)
+              │                             │
+              ▼                             ▼
+       Express Backend (:5000)      Express Backend (:5000)
+              │                             │
+              │                             ▼
+              │                    FastAPI /transcribe (:8000)
+              │                    (Whisper STT on GPU/CPU)
+              │                             │
+              │ (Transcribed Text) ◄────────┘
+              ▼
+       FastAPI /retrieve (:8000)
+       (BAAI/bge-m3 + FAISS)
+              │
+              ▼ (Top Relevant Document Chunks)
+       Ollama (:11434)
+       (Qwen2.5:7B Prompt Synthesis)
+              │
+              ▼
+       Response sent back to React UI
 ```
 
 ---
 
-## How It Works
+## Getting Started (Step-by-Step Setup for New Users)
 
-### 1. Document Processing
+Follow these steps to set up and run the entire project from scratch on your machine.
 
-- Company policy PDFs are loaded.
-- Documents are split into semantic chunks.
-- Each chunk is converted into embeddings using **BAAI/bge-m3**.
-- Embeddings are stored inside a FAISS vector database.
+### Prerequisites
 
-This is a one-time process.
-
----
-
-### 2. User Query
-
-When a user asks a question:
-
-1. React sends the query to Express.
-2. Express forwards the query to the FastAPI retrieval service.
-3. FastAPI generates the query embedding.
-4. FAISS retrieves the most relevant document chunks.
-5. Retrieved chunks are returned to Express.
-6. Express builds the prompt.
-7. Ollama (Qwen2.5:7B) generates the final answer.
-8. Response is sent back to the frontend.
+Ensure you have the following installed on your machine:
+- **Git**: [https://git-scm.com/](https://git-scm.com/)
+- **Node.js (v18+) & npm**: [https://nodejs.org/](https://nodejs.org/)
+- **Python (3.10 to 3.12)**: [https://www.python.org/](https://www.python.org/)
+- **Ollama**: [https://ollama.com/](https://ollama.com/)
 
 ---
 
-## Retrieval Pipeline
+### Step 1: Clone the Repository
 
-```
-User Question
-      │
-      ▼
-Sentence Transformer (bge-m3)
-      │
-      ▼
-Vector Embedding
-      │
-      ▼
-FAISS Search
-      │
-      ▼
-Top Relevant Chunks
-      │
-      ▼
-Qwen2.5 Prompt
-      │
-      ▼
-Final Response
-```
-
----
-
-## Why FastAPI?
-
-Initially, the backend launched a new Python process for every query.
-
-```
-Node
- │
- ▼
-execFile()
- │
- ▼
-Python
- │
- ▼
-Load Model
- │
- ▼
-Retrieve
-```
-
-This caused the embedding model to load for every request.
-
-The project was optimized by introducing a persistent FastAPI service.
-
-```
-Node
- │
- ▼
-HTTP Request
- │
- ▼
-FastAPI
- │
- ▼
-Retriever already loaded
- │
- ▼
-Retrieve
-```
-
-Benefits:
-
-- Embedding model loads only once.
-- FAISS loads only once.
-- Faster retrieval.
-- Better scalability.
-- Cleaner architecture.
-
----
-
-## Performance Optimization
-
-### Before Optimization
-
-- Python started for every request.
-- Embedding model loaded repeatedly.
-- Higher retrieval latency.
-
-### After Optimization
-
-- Persistent FastAPI service.
-- Cached embedding model.
-- Cached FAISS index.
-- Retrieval latency reduced to under one second.
-
----
-
-## Models Used
-
-### Embedding Model
-
-**BAAI/bge-m3**
-
-Purpose:
-
-- Convert document chunks into dense vector embeddings.
-- Convert user questions into embeddings.
-- Enable semantic similarity search.
-
-### Language Model
-
-**Qwen2.5:7B**
-
-Purpose:
-
-- Read retrieved context.
-- Generate natural language answers.
-- Support multilingual conversations.
-
----
-
-## Running the Project
-
-### Clone Repository
+Clone the project and checkout the `chakri` branch:
 
 ```bash
-git clone https://github.com/Chakri745/Vernacular_chatbot.git
-cd Vernacular_chatbot
+git clone https://github.com/rssssssssssssssssssssss/ml-_project.git
+cd ml-_project
+git checkout chakri
 ```
 
 ---
 
-### Install Frontend
+### Step 2: Install Python Dependencies & Download STT/Embedding Models
+
+1. **Install Python packages**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Download & Save the Embedding Model (`bge-m3`)**:
+   Run the model downloader script to cache the BGE-M3 model locally:
+   ```bash
+   cd backend
+   python save_model.py
+   cd ..
+   ```
+
+3. **(Optional) Build / Re-index Document Embeddings**:
+   If you add or modify PDFs in `knowledge/organizations/sample_company/documents/`:
+   ```bash
+   cd backend/rag
+   python ingest.py
+   cd ../..
+   ```
+
+---
+
+### Step 3: Set Up & Pull the Ollama LLM
+
+1. Start the Ollama background daemon:
+   ```bash
+   ollama serve
+   ```
+
+2. Pull the language model in a separate terminal:
+   ```bash
+   ollama pull qwen2.5:7b
+   ```
+
+---
+
+### Step 4: Install Node.js Backend Dependencies
+
+```bash
+cd backend
+npm install
+```
+
+Create or verify `backend/.env`:
+```env
+PORT=5000
+OLLAMA_MODEL=qwen2.5:7b
+OLLAMA_HOST=http://localhost:11434
+```
+Return to root:
+```bash
+cd ..
+```
+
+---
+
+### Step 5: Install Frontend Dependencies
 
 ```bash
 cd frontend
 npm install
+cd ..
 ```
 
-Run
+---
 
+## Running the Application
+
+Open 3 separate terminals (or terminal tabs) to run the services:
+
+### Terminal 1: FastAPI RAG & Whisper STT Service
 ```bash
+cd backend
+python -m uvicorn rag.server:app --port 8000
+```
+> Runs at `http://127.0.0.1:8000`. On first launch, Whisper STT will automatically load its weights into GPU/CPU memory.
+
+---
+
+### Terminal 2: Express Backend Server
+```bash
+cd backend
 npm run dev
 ```
+> Runs at `http://localhost:5000`.
 
 ---
 
-### Install Backend
-
+### Terminal 3: Vite React Frontend
 ```bash
-cd backend
-npm install
+cd frontend
+npm run d
 ```
+> Opens in your browser at `http://localhost:5173/`.
 
 ---
 
-### Install Python Dependencies
+## Using the Chatbot
 
-```bash
-pip install -r requirements.txt
-```
-
-or
-
-```bash
-pip install fastapi uvicorn sentence-transformers faiss-cpu pypdf
-```
-
----
-
-### Start FastAPI Retrieval Server
-
-```bash
-cd backend
-
-python -m uvicorn rag.server:app --reload
-```
-
-Runs on
-
-```
-http://127.0.0.1:8000
-```
+1. Open **`http://localhost:5173/`** in your browser.
+2. **Text Query**: Type your question in any language (e.g., *"Where is Vedranta Bank headquarters?"* or *"What is the home loan eligibility?"*).
+3. **Voice Query**:
+   - Choose your spoken language in the dropdown (e.g. **Telugu (తెలుగు)**, **Hindi (हिन्दी)**, **Tamil (தமிழ்)**, or **English**).
+   - Click the **Microphone** button.
+   - Speak your question into your microphone.
+   - Click the red **Stop** button.
+   - Whisper will automatically transcribe your speech and submit it to the chatbot.
 
 ---
 
-### Start Express Backend
-
-```bash
-cd backend
-
-npm run dev
-```
-
-Runs on
+## Project Structure
 
 ```
-http://localhost:5000
-```
-
----
-
-### Start Ollama
-
-```bash
-ollama serve
-```
-
-Run the model
-
-```bash
-ollama run qwen2.5:7b
+ml-_project/
+├── backend/
+│   ├── models/
+│   │   └── bge-m3/                 # Cached offline BGE-M3 embeddings
+│   ├── rag/
+│   │   ├── server.py               # FastAPI persistent service (:8000)
+│   │   ├── stt_service.py          # Whisper STT multilingual pipeline
+│   │   ├── retriever.py            # FAISS similarity search
+│   │   ├── embedding_service.py    # Document & query embedding generator
+│   │   ├── loader.py               # Document PDF parser
+│   │   ├── chunker.py              # Semantic text chunking
+│   │   ├── vector_store.py         # FAISS index persistence
+│   │   └── ingest.py               # Document ingestion CLI
+│   ├── src/
+│   │   ├── controllers/            # Express chat & transcribe controllers
+│   │   ├── routes/                 # Express API routes (/api/chat)
+│   │   ├── services/
+│   │   │   ├── llm/qwen.service.js # Ollama prompt builder & client
+│   │   │   ├── memory/             # Conversation history memory
+│   │   │   └── rag/                # HTTP client for FastAPI service
+│   │   ├── app.js                  # Express application setup
+│   │   └── server.js               # Express server entry point (:5000)
+│   ├── save_model.py               # Helper script to download bge-m3
+│   └── package.json
+│
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ChatBox.jsx         # Chat messages view & welcome state
+│   │   │   ├── InputBar.jsx        # Text input & Web Audio mic recording
+│   │   │   ├── Message.jsx         # Chat message bubble
+│   │   │   └── Navbar.jsx          # Header with Vedranta Bank branding
+│   │   ├── pages/Home.jsx          # Main chat interface page
+│   │   ├── services/api.js         # Axios API client
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   └── package.json
+│
+├── knowledge/
+│   └── organizations/
+│       └── sample_company/
+│           ├── documents/          # 11 active Vedranta Bank policy PDFs
+│           └── vectordb/           # Saved FAISS index & metadata JSON
+│
+├── requirements.txt                # Python dependencies
+└── README.md
 ```
 
 ---
 
 ## Authors
 
-**A.S. Chakradhar**
-
-Computer Science and Engineering
-
-Amrita Vishwa Vidyapeetham
-
----
+**A.S. Chakradhar**  
+Computer Science and Engineering  
+Amrita Vishwa Vidyapeetham  
