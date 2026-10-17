@@ -2,8 +2,8 @@ import json
 import faiss
 import numpy as np
 
-from config import VECTOR_DIR
-from embedding_service import embed_queries
+from rag.config import VECTOR_DIR
+from rag.embedding_service import embed_queries
 
 
 class Retriever:

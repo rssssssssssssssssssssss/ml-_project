@@ -1,32 +1,25 @@
-import { execFile } from "child_process";
-import { promisify } from "util";
-
-const execFileAsync = promisify(execFile);
+import axios from "axios";
 
 export async function getRelevantContext(question) {
     try {
-        const { stdout } = await execFileAsync(
-        "python",
-        [
-            "-X",
-            "utf8",
-            "rag/query.py",
-            question,
-        ],
-        {
-            cwd: process.cwd(),
-        }
-    );
 
-        const result = JSON.parse(stdout);
+        const response = await axios.post(
+            "http://127.0.0.1:8000/retrieve",
+            {
+                question,
+            }
+        );
 
-        if (!result.success) {
+        if (!response.data.success) {
             return "";
         }
 
-        return result.context.join("\n\n");
+        return response.data.context.join("\n\n");
+
     } catch (err) {
-        console.error("RAG Error:", err);
+
+        console.error("RAG Error:", err.message);
         return "";
+
     }
 }

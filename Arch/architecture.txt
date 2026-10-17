@@ -1,0 +1,50 @@
+                                                              User
+                                                                │
+                                                                ▼
+                                                        Ask a Question
+                                                                │
+                                                                ▼
+                                                    Frontend sends request
+                                                                │
+                                                                ▼
+                                                      Backend receives request
+                                                                │
+                                                                ▼
+                                              Save user's message in memory
+                                                                │
+                                                                ▼
+                                            Send question to Retrieval Service
+                                                                │
+                                                                ▼
+                                            Convert question into an embedding
+                                                                │
+                                                                ▼
+                                            Perform semantic search in FAISS
+                                                                │
+                                                                ▼
+                                            Retrieve the most relevant chunks
+                                                                │
+                                                                ▼
+                                            Return retrieved context
+                                                                │
+                                                                ▼
+                                            Build prompt containing:
+                                              • System instructions
+                                              • Retrieved document context
+                                              • Previous conversation history
+                                                                │
+                                                                ▼
+                                              Send prompt to Qwen2.5:7b (Ollama)
+                                                                │
+                                                                ▼
+                                            Qwen reads the retrieved context
+                                            and generates the final answer
+                                                                │
+                                                                ▼
+                                            Save assistant response in memory
+                                                                │
+                                                                ▼
+                                              Return response to frontend
+                                                                │
+                                                                ▼
+                                              Display answer to the user

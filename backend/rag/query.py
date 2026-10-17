@@ -4,7 +4,7 @@ import sys
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-from retriever import Retriever
+from rag.retriever import Retriever
 
 retriever = Retriever()
 

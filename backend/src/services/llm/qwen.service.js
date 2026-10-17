@@ -7,6 +7,7 @@ import {
 } from "../memory/memory.service.js";
 
 export async function generateResponse(sessionId, message) {
+    console.time("Total");
     console.log("generateResponse() arguments:");
     console.log("sessionId =", sessionId);
     console.log("message =", message);
@@ -15,7 +16,9 @@ export async function generateResponse(sessionId, message) {
     addMessage(sessionId, "user", message);
 
     // Retrieve relevant company context
+    console.time("RAG Retrieval");
     const context = await getRelevantContext(message);
+    console.timeEnd("RAG Retrieval");
 
     // Build messages for Qwen
     const messages = [
@@ -47,13 +50,19 @@ ${context}
     console.log(JSON.stringify(messages, null, 2));
 
     // Generate response
+    console.time("Ollama");
+
     const response = await ollama.chat({
         model: "qwen2.5:7b",
         messages,
     });
 
+console.timeEnd("Ollama");
+
     // Save assistant response
     addMessage(sessionId, "assistant", response.message.content);
 
+    console.timeEnd("Total");
+    
     return response.message.content;
 }

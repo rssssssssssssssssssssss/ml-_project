@@ -73,7 +73,7 @@ function InputBar({ setMessages, loading, setLoading }) {
                             sendMessage();
                         }
                     }}
-                    placeholder="Type your question..."
+                    placeholder="Ask Vedranta Bank anything (e.g. loan eligibility, branches, leaves)..."
                     className="flex-1 border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                 />
 

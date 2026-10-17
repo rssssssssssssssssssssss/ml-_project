@@ -12,12 +12,12 @@ function ChatBox({ messages, loading }) {
 
                     <div className="text-center text-gray-500 mt-40">
 
-                        <h2 className="text-3xl font-semibold mb-3">
-                            Welcome
+                        <h2 className="text-3xl font-semibold mb-3 text-gray-800">
+                            Welcome to Vedranta Bank
                         </h2>
 
-                        <p>
-                            Ask anything about your organization.
+                        <p className="text-gray-500 max-w-md mx-auto">
+                            Ask anything about accounts, personal loans, home loans, customer service, or policies in your preferred language.
                         </p>
 
                     </div>
