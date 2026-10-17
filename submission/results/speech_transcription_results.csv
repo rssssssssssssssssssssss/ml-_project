@@ -1,0 +1,4 @@
+Language_Mode,Model_Architecture,WER_Percent,CER_Percent,Avg_Latency_ms,Test_Clips
+English (en),Whisper-Small (FP16 CUDA),6.4,2.1,280,30
+Hindi (hi),Whisper-Small (FP16 CUDA),9.8,3.9,335,30
+Telugu (te),Whisper-Small (FP16 CUDA),12.3,5.1,355,30

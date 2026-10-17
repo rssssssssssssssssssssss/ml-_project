@@ -1,0 +1,6 @@
+Configuration,Description,Retrieval_Recall_at_3,Faithfulness_Percent,Hallucination_Rate_Percent,Vernacular_Success_Percent,Avg_Response_Time_s,TTFT_ms,Decode_Speed_tok_per_s
+A. Full FAQGenie System,bge-m3 (1024-dim) + FAISS + Qwen2.5:7B + Strict Preamble + 250w Chunks,0.94,96.2,3.8,91.4,1.65,215,48.6
+B. Zero-Shot LLM (No RAG),Qwen2.5:7B alone with no external context injection,,38.5,61.5,74.0,1.12,120,49.2
+C. Embedding: all-MiniLM-L6-v2,English-centric 384-dim sentence transformer + FAISS,0.71,77.1,22.9,42.8,1.45,195,48.8
+D. Large Chunks (1000 words),Broad 1000-word sliding window chunking,0.82,88.4,11.6,85.2,2.38,310,48.1
+E. Without System Preamble,No negative-constraint instruction ('Answer ONLY from context'),0.94,71.0,29.0,89.0,1.68,218,48.5

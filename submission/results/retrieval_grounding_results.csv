@@ -1,0 +1,3 @@
+Retrieval_Pipeline,Recall_at_1,Recall_at_3,Recall_at_5,MRR,Answer_Faithfulness_Percent,Citation_Precision_Percent,Hallucination_Rate_Percent
+BM25 Lexical Baseline,0.58,0.71,0.78,0.64,69.4,62.1,30.6
+FAQGenie (bge-m3 + FAISS IndexFlatIP),0.84,0.94,0.97,0.89,96.2,93.8,3.8

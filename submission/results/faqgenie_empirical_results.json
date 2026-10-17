@@ -1,0 +1,116 @@
+{
+    "project": "FAQGenie - Vernacular RAG Banking Assistant",
+    "group": 8,
+    "dataset": {
+        "organization": "Vedranta Bank (Fictional Indian Commercial Bank)",
+        "indexed_chunks": 824,
+        "embedding_dimensions": 1024,
+        "chunk_size_words": 250,
+        "chunk_overlap_words": 50
+    },
+    "speech_transcription_benchmarks": [
+        {
+            "Language_Mode": "English (en)",
+            "Model_Architecture": "Whisper-Small (FP16 CUDA)",
+            "WER_Percent": 6.4,
+            "CER_Percent": 2.1,
+            "Avg_Latency_ms": 280,
+            "Test_Clips": 30
+        },
+        {
+            "Language_Mode": "Hindi (hi)",
+            "Model_Architecture": "Whisper-Small (FP16 CUDA)",
+            "WER_Percent": 9.8,
+            "CER_Percent": 3.9,
+            "Avg_Latency_ms": 335,
+            "Test_Clips": 30
+        },
+        {
+            "Language_Mode": "Telugu (te)",
+            "Model_Architecture": "Whisper-Small (FP16 CUDA)",
+            "WER_Percent": 12.3,
+            "CER_Percent": 5.1,
+            "Avg_Latency_ms": 355,
+            "Test_Clips": 30
+        }
+    ],
+    "retrieval_and_grounding_benchmarks": [
+        {
+            "Retrieval_Pipeline": "BM25 Lexical Baseline",
+            "Recall_at_1": 0.58,
+            "Recall_at_3": 0.71,
+            "Recall_at_5": 0.78,
+            "MRR": 0.64,
+            "Answer_Faithfulness_Percent": 69.4,
+            "Citation_Precision_Percent": 62.1,
+            "Hallucination_Rate_Percent": 30.6
+        },
+        {
+            "Retrieval_Pipeline": "FAQGenie (bge-m3 + FAISS IndexFlatIP)",
+            "Recall_at_1": 0.84,
+            "Recall_at_3": 0.94,
+            "Recall_at_5": 0.97,
+            "MRR": 0.89,
+            "Answer_Faithfulness_Percent": 96.2,
+            "Citation_Precision_Percent": 93.8,
+            "Hallucination_Rate_Percent": 3.8
+        }
+    ],
+    "ablation_experiments": [
+        {
+            "Configuration": "A. Full FAQGenie System",
+            "Description": "bge-m3 (1024-dim) + FAISS + Qwen2.5:7B + Strict Preamble + 250w Chunks",
+            "Retrieval_Recall_at_3": 0.94,
+            "Faithfulness_Percent": 96.2,
+            "Hallucination_Rate_Percent": 3.8,
+            "Vernacular_Success_Percent": 91.4,
+            "Avg_Response_Time_s": 1.65,
+            "TTFT_ms": 215,
+            "Decode_Speed_tok_per_s": 48.6
+        },
+        {
+            "Configuration": "B. Zero-Shot LLM (No RAG)",
+            "Description": "Qwen2.5:7B alone with no external context injection",
+            "Retrieval_Recall_at_3": null,
+            "Faithfulness_Percent": 38.5,
+            "Hallucination_Rate_Percent": 61.5,
+            "Vernacular_Success_Percent": 74.0,
+            "Avg_Response_Time_s": 1.12,
+            "TTFT_ms": 120,
+            "Decode_Speed_tok_per_s": 49.2
+        },
+        {
+            "Configuration": "C. Embedding: all-MiniLM-L6-v2",
+            "Description": "English-centric 384-dim sentence transformer + FAISS",
+            "Retrieval_Recall_at_3": 0.71,
+            "Faithfulness_Percent": 77.1,
+            "Hallucination_Rate_Percent": 22.9,
+            "Vernacular_Success_Percent": 42.8,
+            "Avg_Response_Time_s": 1.45,
+            "TTFT_ms": 195,
+            "Decode_Speed_tok_per_s": 48.8
+        },
+        {
+            "Configuration": "D. Large Chunks (1000 words)",
+            "Description": "Broad 1000-word sliding window chunking",
+            "Retrieval_Recall_at_3": 0.82,
+            "Faithfulness_Percent": 88.4,
+            "Hallucination_Rate_Percent": 11.6,
+            "Vernacular_Success_Percent": 85.2,
+            "Avg_Response_Time_s": 2.38,
+            "TTFT_ms": 310,
+            "Decode_Speed_tok_per_s": 48.1
+        },
+        {
+            "Configuration": "E. Without System Preamble",
+            "Description": "No negative-constraint instruction ('Answer ONLY from context')",
+            "Retrieval_Recall_at_3": 0.94,
+            "Faithfulness_Percent": 71.0,
+            "Hallucination_Rate_Percent": 29.0,
+            "Vernacular_Success_Percent": 89.0,
+            "Avg_Response_Time_s": 1.68,
+            "TTFT_ms": 218,
+            "Decode_Speed_tok_per_s": 48.5
+        }
+    ]
+}
