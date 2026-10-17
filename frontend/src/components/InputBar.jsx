@@ -7,7 +7,9 @@ function InputBar({ setMessages, loading, setLoading }) {
     const [recording, setRecording] = useState(false);
     const [transcribing, setTranscribing] = useState(false);
 
-    const mediaRecorderRef = useRef(null);
+    const audioContextRef = useRef(null);
+    const streamRef = useRef(null);
+    const audioWorkletNodeRef = useRef(null);
     const audioChunksRef = useRef([]);
 
     async function sendMessage(textToSend) {
@@ -52,33 +54,86 @@ function InputBar({ setMessages, loading, setLoading }) {
         }
     }
 
+    // Convert Float32Array PCM to 16-bit PCM WAV Blob
+    function encodeWAV(samples, sampleRate) {
+        const buffer = new ArrayBuffer(44 + samples.length * 2);
+        const view = new DataView(buffer);
+
+        /* RIFF identifier */
+        writeString(view, 0, 'RIFF');
+        /* file length */
+        view.setUint32(4, 36 + samples.length * 2, true);
+        /* RIFF type */
+        writeString(view, 8, 'WAVE');
+        /* format chunk identifier */
+        writeString(view, 12, 'fmt ');
+        /* format chunk length */
+        view.setUint32(16, 16, true);
+        /* sample format (raw PCM) */
+        view.setUint16(20, 1, true);
+        /* channel count (mono) */
+        view.setUint16(22, 1, true);
+        /* sample rate */
+        view.setUint32(24, sampleRate, true);
+        /* byte rate (sampleRate * 2) */
+        view.setUint32(28, sampleRate * 2, true);
+        /* block align (channel count * bytes per sample) */
+        view.setUint16(32, 2, true);
+        /* bits per sample */
+        view.setUint16(34, 16, true);
+        /* data chunk identifier */
+        writeString(view, 36, 'data');
+        /* data chunk length */
+        view.setUint32(40, samples.length * 2, true);
+
+        // write 16-bit PCM samples
+        let offset = 44;
+        for (let i = 0; i < samples.length; i++, offset += 2) {
+            const s = Math.max(-1, Math.min(1, samples[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        }
+
+        return new Blob([view], { type: 'audio/wav' });
+    }
+
+    function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
+        }
+    }
+
     async function startRecording() {
         if (loading || transcribing) return;
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    sampleRate: 16000
+                }
+            });
+            streamRef.current = stream;
+
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            const audioCtx = new AudioCtx({ sampleRate: 16000 });
+            audioContextRef.current = audioCtx;
+
+            const source = audioCtx.createMediaStreamSource(stream);
+            // ScriptProcessorNode buffers mono audio PCM frames cleanly
+            const processor = audioCtx.createScriptProcessor(4096, 1, 1);
             audioChunksRef.current = [];
 
-            const mediaRecorder = new MediaRecorder(stream);
-            mediaRecorderRef.current = mediaRecorder;
-
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
-                }
+            processor.onaudioprocess = (e) => {
+                const channelData = e.inputBuffer.getChannelData(0);
+                audioChunksRef.current.push(new Float32Array(channelData));
             };
 
-            mediaRecorder.onstop = async () => {
-                const mimeType = mediaRecorder.mimeType || "audio/webm";
-                const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-                stream.getTracks().forEach(track => track.stop());
+            source.connect(processor);
+            processor.connect(audioCtx.destination);
+            audioWorkletNodeRef.current = processor;
 
-                if (audioBlob.size > 0) {
-                    await sendAudioForTranscription(audioBlob);
-                }
-            };
-
-            mediaRecorder.start();
             setRecording(true);
         } catch (err) {
             console.error("Microphone access error:", err);
@@ -86,10 +141,40 @@ function InputBar({ setMessages, loading, setLoading }) {
         }
     }
 
-    function stopRecording() {
-        if (mediaRecorderRef.current && recording) {
-            mediaRecorderRef.current.stop();
-            setRecording(false);
+    async function stopRecording() {
+        if (!recording) return;
+
+        setRecording(false);
+
+        try {
+            if (audioWorkletNodeRef.current) {
+                audioWorkletNodeRef.current.disconnect();
+            }
+            if (audioContextRef.current) {
+                await audioContextRef.current.close();
+            }
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+
+            // Concatenate all recorded chunks into a single Float32Array
+            const totalSamples = audioChunksRef.current.reduce((acc, chunk) => acc + chunk.length, 0);
+            if (totalSamples === 0) return;
+
+            const merged = new Float32Array(totalSamples);
+            let offset = 0;
+            for (const chunk of audioChunksRef.current) {
+                merged.set(chunk, offset);
+                offset += chunk.length;
+            }
+
+            // Encode to standard 16kHz Mono WAV
+            const wavBlob = encodeWAV(merged, 16000);
+            if (wavBlob.size > 100) {
+                await sendAudioForTranscription(wavBlob);
+            }
+        } catch (err) {
+            console.error("Error finalizing audio recording:", err);
         }
     }
 
@@ -97,7 +182,7 @@ function InputBar({ setMessages, loading, setLoading }) {
         setTranscribing(true);
         try {
             const formData = new FormData();
-            formData.append("audio", audioBlob, "user_speech.webm");
+            formData.append("audio", audioBlob, "user_speech.wav");
 
             const response = await API.post("/chat/transcribe", formData, {
                 headers: {
@@ -108,11 +193,12 @@ function InputBar({ setMessages, loading, setLoading }) {
             if (response.data && response.data.success && response.data.text) {
                 const transcribedText = response.data.text.trim();
                 if (transcribedText) {
-                    // Send query automatically
                     await sendMessage(transcribedText);
+                } else {
+                    alert("No speech detected. Please speak clearly into your mic and try again.");
                 }
             } else {
-                alert("Could not understand audio. Please speak clearly and try again.");
+                alert("Could not recognize audio. Please speak clearly and try again.");
             }
         } catch (err) {
             console.error("Transcription error:", err);
@@ -139,9 +225,9 @@ function InputBar({ setMessages, loading, setLoading }) {
                     }}
                     placeholder={
                         recording
-                            ? "Listening to your voice... Speak in any language..."
+                            ? "🔴 Recording your voice... Speak in any language, then click Stop..."
                             : transcribing
-                            ? "Transcribing your speech with Whisper STT..."
+                            ? "⏳ Transcribing your speech with Whisper STT..."
                             : "Ask Vedranta Bank anything (or click the mic to speak in any language)..."
                     }
                     className={`flex-1 border rounded-lg px-4 py-3 outline-none transition ${
@@ -156,7 +242,7 @@ function InputBar({ setMessages, loading, setLoading }) {
                     type="button"
                     onClick={recording ? stopRecording : startRecording}
                     disabled={isBusy}
-                    title={recording ? "Stop Recording & Send" : "Speak your query in any language"}
+                    title={recording ? "Stop Recording & Submit Query" : "Click to speak your query"}
                     className={`p-3 rounded-lg text-white flex items-center justify-center transition shadow-sm ${
                         recording
                             ? "bg-red-600 hover:bg-red-700 animate-pulse"
