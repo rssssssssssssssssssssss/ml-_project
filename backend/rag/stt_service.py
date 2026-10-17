@@ -1,4 +1,5 @@
 import io
+import sys
 import torch
 import soundfile as sf
 import librosa
@@ -6,7 +7,7 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
 MODEL_ID = "openai/whisper-small"
 
-# Language ISO map and regional prompt biases to guide decoding into native scripts
+# Language ISO map
 LANGUAGE_MAP = {
     "telugu": "te",
     "te": "te",
@@ -26,16 +27,6 @@ LANGUAGE_MAP = {
     "gu": "gu",
     "english": "en",
     "en": "en",
-}
-
-# Initial prompts conditioning Whisper decoder to use native script instead of transliterating/hallucinating Hindi
-INITIAL_PROMPTS = {
-    "te": "బ్యాంకు, ఖాతా, రుణం, వ్యక్తిగత రుణం, గృహ రుణం, వేదాంత బ్యాంకు.",
-    "ta": "வங்கி, கணக்கு, கடன், தனிநபர் கடன், வீட்டுக் கடன், வேதாந்தா வங்கி.",
-    "kn": "ಬ್ಯಾಂಕ್, ಖಾತೆ, ಸಾಲ, ವೈಯಕ್ತಿಕ ಸಾಲ, ಗೃಹ ಸಾಲ, ವೇದಾಂತ ಬ್ಯಾಂಕ್.",
-    "ml": "ബാങ്ക്, അക്കൗണ്ട്, വായ്പ, ഭവന വായ്പ, വേദാന്ത ബാങ്ക്.",
-    "hi": "बैंक, खाता, ऋण, व्यक्तिगत ऋण, गृह ऋण, वेदांता बैंक.",
-    "en": "Bank, account, loan, personal loan, home loan, Vedranta Bank.",
 }
 
 class WhisperSTTService:
@@ -94,12 +85,8 @@ class WhisperSTTService:
             target_lang = LANGUAGE_MAP.get(lang_clean, lang_clean)
 
         if target_lang and target_lang not in ["auto", "all", ""]:
-            # Set exact language code (e.g. 'te' for Telugu)
+            # Set exact ISO language code (e.g. 'te' for Telugu)
             generate_kwargs["language"] = target_lang
-
-            # Provide initial prompt in the target script to lock the language script
-            if target_lang in INITIAL_PROMPTS:
-                generate_kwargs["initial_prompt"] = INITIAL_PROMPTS[target_lang]
 
         result = self.pipe(
             audio_data,
@@ -108,7 +95,12 @@ class WhisperSTTService:
         )
 
         text = result.get("text", "").strip()
-        print(f"[STT Transcription] target_lang={target_lang} -> '{text}'")
+
+        # Safely log without Windows charmap encoding crash on Telugu/Tamil/Kannada characters
+        try:
+            print(f"[STT Transcription] target_lang={target_lang} -> '{text}'")
+        except Exception:
+            pass
 
         return {
             "success": True,
