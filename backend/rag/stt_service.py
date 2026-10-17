@@ -32,33 +32,39 @@ class WhisperSTTService:
         )
         print(f"Whisper STT Service ready on {self.device}!")
 
-    def transcribe(self, audio_bytes: bytes) -> dict:
+    def transcribe(self, audio_bytes: bytes, language: str = None) -> dict:
         """
-        Transcribes audio bytes (e.g. webm, wav, ogg, mp3) into text.
-        Supports any native language supported by Whisper (Hindi, Tamil, Telugu, English, etc.)
+        Transcribes audio bytes into text.
+        If language is specified (e.g. 'telugu', 'tamil', 'hindi', 'kannada', 'english'),
+        Whisper forces decoding in that language without misidentifying it.
         """
-        # Load audio using soundfile or fallback to librosa
         try:
             audio_data, sample_rate = sf.read(io.BytesIO(audio_bytes))
         except Exception:
-            # Fallback with librosa
             audio_data, sample_rate = librosa.load(io.BytesIO(audio_bytes), sr=16000)
 
-        # If multi-channel, convert to mono
+        # Mono conversion
         if hasattr(audio_data, "ndim") and audio_data.ndim > 1:
             audio_data = audio_data.mean(axis=1)
 
-        # Resample to 16kHz if not already
+        # Resample to 16kHz
         if sample_rate != 16000:
             audio_data = librosa.resample(audio_data, orig_sr=sample_rate, target_sr=16000)
             sample_rate = 16000
 
-        # Generate transcription
-        # Whisper automatically detects the spoken language
+        generate_kwargs = {
+            "task": "transcribe"
+        }
+
+        # If language is provided (and not 'auto'), explicitly guide Whisper
+        if language and language.lower() not in ["auto", "all", ""]:
+            lang_clean = language.lower().strip()
+            generate_kwargs["language"] = lang_clean
+
         result = self.pipe(
             audio_data,
             return_timestamps=False,
-            generate_kwargs={"task": "transcribe"}
+            generate_kwargs=generate_kwargs
         )
 
         text = result.get("text", "").strip()

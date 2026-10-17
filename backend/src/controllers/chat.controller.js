@@ -28,9 +28,14 @@ export async function transcribeAudio(req, res) {
             });
         }
 
+        const language = req.body.language || "auto";
+
         const formData = new FormData();
-        const blob = new Blob([req.file.buffer], { type: req.file.mimetype || "audio/webm" });
-        formData.append("file", blob, req.file.originalname || "recording.webm");
+        const blob = new Blob([req.file.buffer], { type: req.file.mimetype || "audio/wav" });
+        formData.append("file", blob, req.file.originalname || "recording.wav");
+        if (language && language !== "auto") {
+            formData.append("language", language);
+        }
 
         const response = await axios.post("http://127.0.0.1:8000/transcribe", formData);
 

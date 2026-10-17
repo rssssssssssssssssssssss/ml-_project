@@ -1,11 +1,22 @@
 import { useState, useRef } from "react";
-import { Mic, Square, Loader2 } from "lucide-react";
+import { Mic, Square, Loader2, Globe } from "lucide-react";
 import API from "../services/api";
+
+const LANGUAGES = [
+    { code: "auto", label: "Auto Detect" },
+    { code: "telugu", label: "Telugu (తెలుగు)" },
+    { code: "hindi", label: "Hindi (हिन्दी)" },
+    { code: "tamil", label: "Tamil (தமிழ்)" },
+    { code: "kannada", label: "Kannada (ಕನ್ನಡ)" },
+    { code: "malayalam", label: "Malayalam (മലയാളം)" },
+    { code: "english", label: "English" },
+];
 
 function InputBar({ setMessages, loading, setLoading }) {
     const [input, setInput] = useState("");
     const [recording, setRecording] = useState(false);
     const [transcribing, setTranscribing] = useState(false);
+    const [selectedLanguage, setSelectedLanguage] = useState("auto");
 
     const audioContextRef = useRef(null);
     const streamRef = useRef(null);
@@ -121,7 +132,6 @@ function InputBar({ setMessages, loading, setLoading }) {
             audioContextRef.current = audioCtx;
 
             const source = audioCtx.createMediaStreamSource(stream);
-            // ScriptProcessorNode buffers mono audio PCM frames cleanly
             const processor = audioCtx.createScriptProcessor(4096, 1, 1);
             audioChunksRef.current = [];
 
@@ -157,7 +167,6 @@ function InputBar({ setMessages, loading, setLoading }) {
                 streamRef.current.getTracks().forEach(track => track.stop());
             }
 
-            // Concatenate all recorded chunks into a single Float32Array
             const totalSamples = audioChunksRef.current.reduce((acc, chunk) => acc + chunk.length, 0);
             if (totalSamples === 0) return;
 
@@ -168,7 +177,6 @@ function InputBar({ setMessages, loading, setLoading }) {
                 offset += chunk.length;
             }
 
-            // Encode to standard 16kHz Mono WAV
             const wavBlob = encodeWAV(merged, 16000);
             if (wavBlob.size > 100) {
                 await sendAudioForTranscription(wavBlob);
@@ -183,6 +191,7 @@ function InputBar({ setMessages, loading, setLoading }) {
         try {
             const formData = new FormData();
             formData.append("audio", audioBlob, "user_speech.wav");
+            formData.append("language", selectedLanguage);
 
             const response = await API.post("/chat/transcribe", formData, {
                 headers: {
@@ -212,7 +221,26 @@ function InputBar({ setMessages, loading, setLoading }) {
 
     return (
         <div className="bg-white border-t">
-            <div className="max-w-5xl mx-auto p-4 flex gap-3 items-center">
+            <div className="max-w-5xl mx-auto p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                {/* Language Selector Dropdown */}
+                <div className="flex items-center gap-1.5 bg-gray-50 border rounded-lg px-2.5 py-2 shrink-0">
+                    <Globe className="w-4 h-4 text-gray-500" />
+                    <select
+                        value={selectedLanguage}
+                        onChange={(e) => setSelectedLanguage(e.target.value)}
+                        disabled={isBusy || recording}
+                        className="bg-transparent text-xs font-semibold text-gray-700 outline-none cursor-pointer pr-1"
+                        title="Select spoken language for highest accuracy or keep Auto"
+                    >
+                        {LANGUAGES.map(lang => (
+                            <option key={lang.code} value={lang.code}>
+                                {lang.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Input Text Box */}
                 <input
                     type="text"
                     value={input}
@@ -225,53 +253,55 @@ function InputBar({ setMessages, loading, setLoading }) {
                     }}
                     placeholder={
                         recording
-                            ? "🔴 Recording your voice... Speak in any language, then click Stop..."
+                            ? `🔴 Listening (${LANGUAGES.find(l => l.code === selectedLanguage)?.label})... Click Stop when finished`
                             : transcribing
-                            ? "⏳ Transcribing your speech with Whisper STT..."
-                            : "Ask Vedranta Bank anything (or click the mic to speak in any language)..."
+                            ? "⏳ Whisper is transcribing your native speech on GPU..."
+                            : "Ask Vedranta Bank anything (or click mic to speak)..."
                     }
-                    className={`flex-1 border rounded-lg px-4 py-3 outline-none transition ${
+                    className={`flex-1 border rounded-lg px-4 py-2.5 outline-none transition text-sm ${
                         recording
                             ? "border-red-500 bg-red-50 ring-2 ring-red-400 placeholder-red-600 font-medium"
                             : "focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                     }`}
                 />
 
-                {/* Microphone Recording Button */}
-                <button
-                    type="button"
-                    onClick={recording ? stopRecording : startRecording}
-                    disabled={isBusy}
-                    title={recording ? "Stop Recording & Submit Query" : "Click to speak your query"}
-                    className={`p-3 rounded-lg text-white flex items-center justify-center transition shadow-sm ${
-                        recording
-                            ? "bg-red-600 hover:bg-red-700 animate-pulse"
-                            : transcribing
-                            ? "bg-amber-500 cursor-wait"
-                            : "bg-gray-700 hover:bg-gray-800"
-                    }`}
-                >
-                    {transcribing ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : recording ? (
-                        <Square className="w-5 h-5 fill-current" />
-                    ) : (
-                        <Mic className="w-5 h-5" />
-                    )}
-                </button>
+                <div className="flex gap-2">
+                    {/* Microphone Recording Button */}
+                    <button
+                        type="button"
+                        onClick={recording ? stopRecording : startRecording}
+                        disabled={isBusy}
+                        title={recording ? "Stop Recording & Submit Query" : `Speak in ${LANGUAGES.find(l => l.code === selectedLanguage)?.label}`}
+                        className={`p-2.5 sm:p-3 rounded-lg text-white flex items-center justify-center transition shadow-sm ${
+                            recording
+                                ? "bg-red-600 hover:bg-red-700 animate-pulse"
+                                : transcribing
+                                ? "bg-amber-500 cursor-wait"
+                                : "bg-gray-700 hover:bg-gray-800"
+                        }`}
+                    >
+                        {transcribing ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : recording ? (
+                            <Square className="w-5 h-5 fill-current" />
+                        ) : (
+                            <Mic className="w-5 h-5" />
+                        )}
+                    </button>
 
-                {/* Send Button */}
-                <button
-                    onClick={() => sendMessage()}
-                    disabled={isBusy || recording || !input.trim()}
-                    className={`px-6 py-3 rounded-lg text-white font-medium transition ${
-                        isBusy || recording || !input.trim()
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-blue-600 hover:bg-blue-700 shadow-sm"
-                    }`}
-                >
-                    {loading ? "Thinking..." : transcribing ? "Transcribing..." : "Send"}
-                </button>
+                    {/* Send Button */}
+                    <button
+                        onClick={() => sendMessage()}
+                        disabled={isBusy || recording || !input.trim()}
+                        className={`px-5 py-2.5 rounded-lg text-white text-sm font-medium transition ${
+                            isBusy || recording || !input.trim()
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "bg-blue-600 hover:bg-blue-700 shadow-sm"
+                        }`}
+                    >
+                        {loading ? "Thinking..." : transcribing ? "Transcribing..." : "Send"}
+                    </button>
+                </div>
             </div>
         </div>
     );
