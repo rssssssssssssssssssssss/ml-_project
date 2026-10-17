@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Mic, Square, Loader2, Globe } from "lucide-react";
+import { Mic, Square, Loader2, Globe, SendHorizontal } from "lucide-react";
 import API from "../services/api";
 
 const LANGUAGES = [
@@ -8,8 +8,8 @@ const LANGUAGES = [
     { code: "english", label: "English" },
 ];
 
-function InputBar({ setMessages, loading, setLoading }) {
-    const [input, setInput] = useState("");
+function InputBar({ setMessages, loading, setLoading, initialInput = "" }) {
+    const [input, setInput] = useState(initialInput);
     const [recording, setRecording] = useState(false);
     const [transcribing, setTranscribing] = useState(false);
     const [selectedLanguage, setSelectedLanguage] = useState("auto");
@@ -216,17 +216,18 @@ function InputBar({ setMessages, loading, setLoading }) {
     const isBusy = loading || transcribing;
 
     return (
-        <div className="bg-white border-t">
-            <div className="max-w-5xl mx-auto p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                {/* Language Selector Dropdown */}
-                <div className="flex items-center gap-1.5 bg-gray-50 border rounded-lg px-2.5 py-2 shrink-0">
-                    <Globe className="w-4 h-4 text-gray-500" />
+        <div className="bg-white/90 backdrop-blur-md border-t border-slate-200/80 px-4 py-3 sm:py-4 shadow-lg sticky bottom-0 z-20">
+            <div className="max-w-4xl mx-auto flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+                
+                {/* Language Selector Pill */}
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/90 rounded-xl px-2.5 py-2 shrink-0">
+                    <Globe className="w-4 h-4 text-slate-500" />
                     <select
                         value={selectedLanguage}
                         onChange={(e) => setSelectedLanguage(e.target.value)}
                         disabled={isBusy || recording}
-                        className="bg-transparent text-xs font-semibold text-gray-700 outline-none cursor-pointer pr-1"
-                        title="Select spoken language for highest accuracy or keep Auto"
+                        className="bg-transparent text-xs font-semibold text-slate-700 outline-none cursor-pointer pr-1"
+                        title="Speech language mode"
                     >
                         {LANGUAGES.map(lang => (
                             <option key={lang.code} value={lang.code}>
@@ -237,67 +238,73 @@ function InputBar({ setMessages, loading, setLoading }) {
                 </div>
 
                 {/* Input Text Box */}
-                <input
-                    type="text"
-                    value={input}
-                    disabled={isBusy || recording}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                            sendMessage();
-                        }
-                    }}
-                    placeholder={
-                        recording
-                            ? `🔴 Listening (${LANGUAGES.find(l => l.code === selectedLanguage)?.label})... Click Stop when finished`
-                            : transcribing
-                            ? "⏳ Whisper is transcribing your native speech on GPU..."
-                            : "Ask Vedranta Bank anything (or click mic to speak)..."
-                    }
-                    className={`flex-1 border rounded-lg px-4 py-2.5 outline-none transition text-sm ${
-                        recording
-                            ? "border-red-500 bg-red-50 ring-2 ring-red-400 placeholder-red-600 font-medium"
-                            : "focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                    }`}
-                />
-
-                <div className="flex gap-2">
-                    {/* Microphone Recording Button */}
-                    <button
-                        type="button"
-                        onClick={recording ? stopRecording : startRecording}
-                        disabled={isBusy}
-                        title={recording ? "Stop Recording & Submit Query" : `Speak in ${LANGUAGES.find(l => l.code === selectedLanguage)?.label}`}
-                        className={`p-2.5 sm:p-3 rounded-lg text-white flex items-center justify-center transition shadow-sm ${
+                <div className="relative flex-1 flex items-center">
+                    <input
+                        type="text"
+                        value={input}
+                        disabled={isBusy || recording}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                sendMessage();
+                            }
+                        }}
+                        placeholder={
                             recording
-                                ? "bg-red-600 hover:bg-red-700 animate-pulse"
+                                ? "🔴 Recording... Click Stop to analyze voice query"
                                 : transcribing
-                                ? "bg-amber-500 cursor-wait"
-                                : "bg-gray-700 hover:bg-gray-800"
+                                ? "⏳ Whisper is transcribing your audio on GPU..."
+                                : "Ask Vedranta Bank about accounts, loans, policies, or click mic..."
+                        }
+                        className={`w-full border rounded-2xl pl-4 pr-11 py-3 outline-none transition text-sm ${
+                            recording
+                                ? "border-red-500 bg-red-50/70 ring-2 ring-red-400/50 placeholder-red-600 font-medium"
+                                : "border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-blue-500 focus:ring-3 focus:ring-blue-100 disabled:bg-slate-100"
                         }`}
-                    >
-                        {transcribing ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : recording ? (
-                            <Square className="w-5 h-5 fill-current" />
-                        ) : (
-                            <Mic className="w-5 h-5" />
-                        )}
-                    </button>
+                    />
 
-                    {/* Send Button */}
+                    {/* Send inside input box on desktop */}
                     <button
                         onClick={() => sendMessage()}
                         disabled={isBusy || recording || !input.trim()}
-                        className={`px-5 py-2.5 rounded-lg text-white text-sm font-medium transition ${
+                        className={`absolute right-2 p-2 rounded-xl transition ${
                             isBusy || recording || !input.trim()
-                                ? "bg-gray-400 cursor-not-allowed"
-                                : "bg-blue-600 hover:bg-blue-700 shadow-sm"
+                                ? "text-slate-300 cursor-not-allowed"
+                                : "text-blue-600 hover:bg-blue-50 cursor-pointer"
                         }`}
+                        title="Send question"
                     >
-                        {loading ? "Thinking..." : transcribing ? "Transcribing..." : "Send"}
+                        {loading ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                        ) : (
+                            <SendHorizontal className="w-4 h-4" />
+                        )}
                     </button>
                 </div>
+
+                {/* Microphone Recording Action Button */}
+                <button
+                    type="button"
+                    onClick={recording ? stopRecording : startRecording}
+                    disabled={isBusy}
+                    title={recording ? "Stop Recording & Submit Query" : `Speak voice query in ${LANGUAGES.find(l => l.code === selectedLanguage)?.label}`}
+                    className={`p-3 rounded-2xl text-white flex items-center justify-center transition-all duration-200 shadow-xs cursor-pointer ${
+                        recording
+                            ? "bg-red-600 hover:bg-red-700 ring-4 ring-red-200 animate-pulse scale-105"
+                            : transcribing
+                            ? "bg-amber-500 cursor-wait"
+                            : "bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/20 hover:shadow-md"
+                    }`}
+                >
+                    {transcribing ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : recording ? (
+                        <Square className="w-5 h-5 fill-current" />
+                    ) : (
+                        <Mic className="w-5 h-5" />
+                    )}
+                </button>
+
             </div>
         </div>
     );
