@@ -141,13 +141,25 @@ npm run dev
 
 ---
 
-### Step 4: Start the Frontend UI
+### Step 4: Start the Frontend UI (Local Development)
 In a new terminal:
 ```powershell
 cd frontend
 npm run d
 ```
 > Opens the client application at `http://localhost:5173/`.
+
+---
+
+### Step 5: Expose Backend for Cloud/Render Deployment (Cloudflare Tunnel)
+If hosting the frontend on **Render** while keeping model inference and backend on your local PC:
+```powershell
+cloudflared tunnel --url http://localhost:5000
+```
+> Copy the generated public HTTPS URL (e.g. `https://<random-subdomain>.trycloudflare.com`) and configure it as `VITE_API_BASE_URL` on Render:
+> ```
+> VITE_API_BASE_URL=https://<your-subdomain>.trycloudflare.com/api
+> ```
 
 ---
 
